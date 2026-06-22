@@ -1,0 +1,25 @@
+# =============================================================
+#  Dependências - Monitor de Diários Oficiais & Prazos Jurídicos
+# =============================================================
+
+# --- Núcleo / Core ---
+requests>=2.32.0           # Cliente HTTP para integração com as APIs
+python-dotenv>=1.0.1       # Carregamento de variáveis de ambiente (.env)
+pydantic>=2.9.0            # Validação de dados e modelagem do JSON estruturado
+pydantic-settings>=2.5.0   # Carregamento tipado das configurações via .env
+python-dateutil>=2.9.0     # Parsing e cálculo de datas (prazos)
+tenacity>=9.0.0            # Retentativas resilientes em chamadas de API
+
+# --- Etapa 1: Captura (Diários Oficiais) ---
+# As chamadas são feitas via `requests`. SDKs específicos da fonte (Escavador/
+# Jusbrasil), caso existam, podem ser adicionados aqui no futuro.
+
+# --- Etapa 2: Inteligência Artificial ---
+google-genai>=1.0.0        # SDK oficial do Google Gemini
+openai>=1.50.0             # SDK oficial da OpenAI
+
+# --- Etapa 3: Integração / Agenda (Google Calendar) ---
+google-api-python-client>=2.140.0
+google-auth>=2.34.0
+google-auth-oauthlib>=1.2.0
+google-auth-httplib2>=0.2.0

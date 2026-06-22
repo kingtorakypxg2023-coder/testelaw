@@ -1,0 +1,36 @@
+# --- Ambiente virtual ---
+.venv/
+venv/
+env/
+
+# --- Segredos / Credenciais (NUNCA versionar) ---
+.env
+*.env
+!.env.example
+credentials.json
+token.json
+*.pem
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- IDE / Editor ---
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# --- Logs / Dados locais ---
+*.log
+data/
