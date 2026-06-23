@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from src.config.settings import settings
 from src.models import AlvoMonitoramento, AnalisePublicacao, TipoMonitoramento
+from src.services.agenda import AgendaError, get_agenda_provider, montar_eventos
 from src.services.capture import carregar_alvos, get_capture_provider
 from src.services.intelligence import IntelligenceError, get_intelligence_provider
 from src.utils.logger import get_logger
@@ -72,7 +73,25 @@ def run() -> list[AnalisePublicacao]:
                 prazo.urgente,
             )
 
-    # 3. AGENDA -> src/services/agenda (TODO: próximo módulo)
+    # 3. AGENDA -> cria eventos/lembretes para os prazos com data fatal
+    eventos = montar_eventos(analises, settings.deadline_reminder_days)
+    if not eventos:
+        logger.info("Nenhum prazo com data fatal para agendar.")
+        return analises
+
+    try:
+        agenda = get_agenda_provider()
+    except AgendaError as exc:
+        logger.warning(
+            "Provedor de agenda '%s' indisponível (%s). Usando provedor 'mock'.",
+            settings.agenda_provider,
+            exc,
+        )
+        agenda = get_agenda_provider("mock")
+
+    refs = agenda.criar_eventos(eventos)
+    criados = sum(1 for ref in refs if ref)
+    logger.info("Eventos enviados à agenda: %d/%d", criados, len(eventos))
 
     return analises
 

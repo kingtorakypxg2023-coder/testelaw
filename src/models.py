@@ -130,3 +130,16 @@ class AnalisePublicacao(BaseModel):
     possui_prazo: bool = Field(default=False)
     prazos: list[Prazo] = Field(default_factory=list)
     gerado_em: datetime = Field(default_factory=datetime.now)
+
+
+class EventoAgenda(BaseModel):
+    """Evento a ser criado na agenda a partir de um prazo (entrada da Etapa 3)."""
+
+    titulo: str = Field(..., description="Título do evento/lembrete")
+    descricao: str = Field(default="", description="Detalhes do prazo")
+    data: date = Field(..., description="Data do evento (data fatal do prazo)")
+    lembrete_dias_antes: int = Field(default=5, description="Antecedência do lembrete, em dias")
+    chave_idempotencia: str = Field(
+        ..., description="Chave estável para evitar eventos duplicados"
+    )
+    urgente: bool = Field(default=False)

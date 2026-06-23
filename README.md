@@ -81,6 +81,11 @@ testelaw/
 │   │   │   ├── factory.py      # Seleção do provedor (AI_PROVIDER)
 │   │   │   └── prompts.py      # System prompt / prompt de extração
 │   │   └── agenda/         # Etapa 3 - Google Calendar / alertas
+│   │       ├── base.py             # Contrato AgendaProvider
+│   │       ├── google_calendar.py  # Cliente Google Calendar (OAuth)
+│   │       ├── mock.py             # Provedor mock (sem credenciais)
+│   │       ├── factory.py          # Seleção do provedor (AGENDA_PROVIDER)
+│   │       └── eventos.py          # Converte prazos -> EventoAgenda
 │   └── utils/
 │       ├── logger.py       # Logging centralizado
 │       ├── dates.py        # Parsing de datas (BR e ISO)
@@ -123,7 +128,8 @@ As principais são:
 - `MONITOR_TERMS` / `MONITOR_OAB` / `MONITOR_PROCESSOS` — alvos monitorados (termos, OAB, processos)
 - `AI_PROVIDER` — provedor de IA: `claude` (padrão), `gemini`, `openai` ou `mock`
 - `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` / `OPENAI_API_KEY` + `CLAUDE_MODEL` — etapa de IA
-- `GOOGLE_CALENDAR_CREDENTIALS` — integração com a agenda
+- `AGENDA_PROVIDER` — destino da agenda: `google` ou `mock`
+- `GOOGLE_CALENDAR_CREDENTIALS` / `DEADLINE_REMINDER_DAYS` — agenda e antecedência do lembrete
 
 ---
 
@@ -132,6 +138,7 @@ As principais são:
 - [x] Estrutura base do projeto, configuração e contratos de dados
 - [x] **Módulo de Captura** (Etapa 1) — Jusbrasil + mock, por termo/OAB/processo
 - [x] **Módulo de Inteligência** (Etapa 2) — Claude/Gemini/OpenAI + mock; data fatal em dias úteis
-- [ ] Módulo de Integração / Agenda (Etapa 3) — *próximo*
-- [ ] Persistência (evitar reprocessar publicações) e agendamento (scheduler)
+- [x] **Módulo de Agenda** (Etapa 3) — Google Calendar + mock; evento/lembrete por prazo
+- [ ] Persistência (evitar reprocessar publicações) e agendamento (scheduler/cron)
+- [ ] Notificações extra (e-mail / Telegram / webhook)
 - [ ] Cobertura de testes ampliada

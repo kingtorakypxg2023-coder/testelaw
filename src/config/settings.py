@@ -46,13 +46,14 @@ class Settings(BaseSettings):
     # --- Etapa 2: Inteligência Artificial ---
     ai_provider: str = Field(default="claude")  # claude | gemini | openai | mock
     anthropic_api_key: str | None = Field(default=None)
-    claude_model: str = Field(default="claude-opus-4-8")
+    claude_model: str = Field(default="claude-haiku-4-5")
     gemini_api_key: str | None = Field(default=None)
     gemini_model: str = Field(default="gemini-2.5-flash")
     openai_api_key: str | None = Field(default=None)
     openai_model: str = Field(default="gpt-4o-mini")
 
     # --- Etapa 3: Integração / Agenda (Google Calendar) ---
+    agenda_provider: str = Field(default="mock")  # google | mock
     google_calendar_credentials: str = Field(default="credentials.json")
     google_calendar_token: str = Field(default="token.json")
     google_calendar_id: str = Field(default="primary")
