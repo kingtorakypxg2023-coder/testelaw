@@ -86,11 +86,39 @@ class Prazo(BaseModel):
     prazo_dias: int | None = Field(
         default=None, description="Quantidade de dias do prazo, se informado na publicação"
     )
+    data_referencia: date | None = Field(
+        default=None, description="Data explícita citada na publicação (ex.: audiência)"
+    )
     data_fatal: date | None = Field(
-        default=None, description="Data limite (fatal) calculada ou informada"
+        default=None, description="Data limite (fatal) CALCULADA em código (dias úteis - CPC)"
     )
     urgente: bool = Field(default=False)
     observacoes: str | None = Field(default=None)
+
+
+class PrazoExtraido(BaseModel):
+    """Prazo conforme extraído pela IA, ANTES do cálculo da data fatal.
+
+    A IA preenche `prazo_dias` (quantidade de dias) e/ou `data_referencia`
+    (data explícita citada). A `data_fatal` final é calculada em código.
+    """
+
+    tipo: TipoPrazo = Field(default=TipoPrazo.OUTRO)
+    descricao: str = Field(..., description="Resumo objetivo da ação a ser tomada")
+    prazo_dias: int | None = Field(default=None, description="Número de dias do prazo")
+    data_referencia: date | None = Field(
+        default=None, description="Data explícita citada (AAAA-MM-DD), ex.: audiência"
+    )
+    urgente: bool = Field(default=False)
+    observacoes: str | None = Field(default=None)
+
+
+class AnaliseExtraida(BaseModel):
+    """Saída estruturada BRUTA da IA para uma publicação (schema enviado ao modelo)."""
+
+    resumo: str = Field(..., description="Resumo objetivo do teor da publicação")
+    possui_prazo: bool = Field(default=False)
+    prazos: list[PrazoExtraido] = Field(default_factory=list)
 
 
 class AnalisePublicacao(BaseModel):

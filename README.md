@@ -16,9 +16,9 @@ O pipeline é dividido em **3 etapas** desacopladas:
 ┌──────────────────┐     ┌─────────────────────┐     ┌──────────────────────┐
 │  1. CAPTURA      │     │  2. INTELIGÊNCIA    │     │  3. INTEGRAÇÃO/AGENDA│
 │                  │     │     ARTIFICIAL      │     │                      │
-│  APIs de diários │ ──► │  LLM (Gemini/OpenAI)│ ──► │  Google Calendar     │
-│  (Escavador /    │     │  interpreta o texto │     │  / alertas           │
-│   Jusbrasil)     │     │  e extrai prazos    │     │                      │
+│  APIs de diários │ ──► │ LLM Claude/Gemini/  │ ──► │  Google Calendar     │
+│  (Jusbrasil /    │     │  OpenAI — extrai    │     │  / alertas           │
+│   Escavador)     │     │  prazos em JSON     │     │                      │
 └──────────────────┘     └─────────────────────┘     └──────────────────────┘
        │                          │                            │
    Publicacao              AnalisePublicacao                 Prazo
@@ -33,7 +33,9 @@ O pipeline é dividido em **3 etapas** desacopladas:
 
 O **contrato de dados** entre as etapas é definido com **Pydantic** em
 [`src/models.py`](src/models.py) (`Publicacao`, `AnalisePublicacao`, `Prazo`),
-garantindo validação e tipagem em todo o fluxo.
+garantindo validação e tipagem em todo o fluxo. A IA apenas **extrai** o prazo
+(em dias) e datas citadas; a **data fatal é calculada em código**, em dias úteis
+(CPC art. 219), por [`src/utils/prazos.py`](src/utils/prazos.py).
 
 ---
 
@@ -44,7 +46,8 @@ garantindo validação e tipagem em todo o fluxo.
 - **Validação & contratos:** `pydantic`, `pydantic-settings`
 - **Configuração:** `python-dotenv`
 - **Resiliência:** `tenacity` (retentativas em chamadas de API)
-- **IA:** `google-genai` (Gemini) e/ou `openai`
+- **IA:** `anthropic` (Claude — padrão), `google-genai` (Gemini), `openai` — com saída estruturada (JSON validado)
+- **Datas/prazos:** `python-dateutil` + cálculo de dias úteis próprio
 - **Agenda:** `google-api-python-client` (Google Calendar)
 
 ---
@@ -70,9 +73,18 @@ testelaw/
 │   │   │   ├── factory.py      # Seleção do provedor (CAPTURE_PROVIDER)
 │   │   │   └── targets.py      # Alvos: termos / OAB / processos
 │   │   ├── intelligence/   # Etapa 2 - IA (extração de prazos)
+│   │   │   ├── base.py         # IntelligenceProvider + cálculo da data fatal
+│   │   │   ├── claude.py       # Provedor Claude (padrão)
+│   │   │   ├── gemini.py       # Provedor Gemini
+│   │   │   ├── openai.py       # Provedor OpenAI
+│   │   │   ├── mock.py         # Provedor mock (heurística, sem credenciais)
+│   │   │   ├── factory.py      # Seleção do provedor (AI_PROVIDER)
+│   │   │   └── prompts.py      # System prompt / prompt de extração
 │   │   └── agenda/         # Etapa 3 - Google Calendar / alertas
 │   └── utils/
-│       └── logger.py       # Logging centralizado
+│       ├── logger.py       # Logging centralizado
+│       ├── dates.py        # Parsing de datas (BR e ISO)
+│       └── prazos.py       # Cálculo de data fatal (dias úteis - CPC)
 └── tests/
 ```
 
@@ -109,7 +121,8 @@ As principais são:
 - `CAPTURE_PROVIDER` — provedor de captura ativo: `jusbrasil` ou `mock`
 - `JUSBRASIL_API_KEY` / `ESCAVADOR_API_KEY` — credenciais de captura (Etapa 1)
 - `MONITOR_TERMS` / `MONITOR_OAB` / `MONITOR_PROCESSOS` — alvos monitorados (termos, OAB, processos)
-- `AI_PROVIDER`, `GEMINI_API_KEY` / `OPENAI_API_KEY` — etapa de IA
+- `AI_PROVIDER` — provedor de IA: `claude` (padrão), `gemini`, `openai` ou `mock`
+- `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` / `OPENAI_API_KEY` + `CLAUDE_MODEL` — etapa de IA
 - `GOOGLE_CALENDAR_CREDENTIALS` — integração com a agenda
 
 ---
@@ -118,7 +131,7 @@ As principais são:
 
 - [x] Estrutura base do projeto, configuração e contratos de dados
 - [x] **Módulo de Captura** (Etapa 1) — Jusbrasil + mock, por termo/OAB/processo
-- [ ] Módulo de Inteligência Artificial (Etapa 2) — *próximo*
-- [ ] Módulo de Integração / Agenda (Etapa 3)
+- [x] **Módulo de Inteligência** (Etapa 2) — Claude/Gemini/OpenAI + mock; data fatal em dias úteis
+- [ ] Módulo de Integração / Agenda (Etapa 3) — *próximo*
 - [ ] Persistência (evitar reprocessar publicações) e agendamento (scheduler)
 - [ ] Cobertura de testes ampliada

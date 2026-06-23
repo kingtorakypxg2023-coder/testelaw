@@ -44,7 +44,9 @@ class Settings(BaseSettings):
     monitor_processos: str = Field(default="")
 
     # --- Etapa 2: Inteligência Artificial ---
-    ai_provider: str = Field(default="gemini")
+    ai_provider: str = Field(default="claude")  # claude | gemini | openai | mock
+    anthropic_api_key: str | None = Field(default=None)
+    claude_model: str = Field(default="claude-opus-4-8")
     gemini_api_key: str | None = Field(default=None)
     gemini_model: str = Field(default="gemini-2.5-flash")
     openai_api_key: str | None = Field(default=None)

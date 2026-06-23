@@ -13,14 +13,15 @@ Execução (a partir da raiz do projeto):
 from __future__ import annotations
 
 from src.config.settings import settings
-from src.models import AlvoMonitoramento, Publicacao, TipoMonitoramento
+from src.models import AlvoMonitoramento, AnalisePublicacao, TipoMonitoramento
 from src.services.capture import carregar_alvos, get_capture_provider
+from src.services.intelligence import IntelligenceError, get_intelligence_provider
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 
-def run() -> list[Publicacao]:
+def run() -> list[AnalisePublicacao]:
     """Executa um ciclo completo do pipeline de monitoramento."""
     logger.info(
         "Iniciando pipeline | ambiente=%s | captura=%s | ia=%s",
@@ -47,10 +48,33 @@ def run() -> list[Publicacao]:
         preview = " ".join(pub.conteudo[:90].split())
         logger.info("  • [%s] %s | %s…", pub.termo_monitorado, pub.numero_processo or "s/ nº", preview)
 
-    # 2. INTELIGÊNCIA  -> src/services/intelligence   (TODO: próximo módulo)
-    # 3. AGENDA        -> src/services/agenda          (TODO)
+    # 2. INTELIGÊNCIA -> interpreta o texto e extrai prazos (data fatal calculada em código)
+    try:
+        ia = get_intelligence_provider()
+    except IntelligenceError as exc:
+        logger.warning(
+            "Provedor de IA '%s' indisponível (%s). Usando provedor 'mock'.",
+            settings.ai_provider,
+            exc,
+        )
+        ia = get_intelligence_provider("mock")
 
-    return publicacoes
+    analises = ia.analisar_varias(publicacoes)
+    total_prazos = sum(len(a.prazos) for a in analises)
+    logger.info("Análises geradas: %d | prazos extraídos: %d", len(analises), total_prazos)
+    for analise in analises:
+        for prazo in analise.prazos:
+            logger.info(
+                "    ↳ [%s] %s | data fatal: %s | urgente=%s",
+                prazo.tipo.value,
+                prazo.descricao,
+                prazo.data_fatal.isoformat() if prazo.data_fatal else "—",
+                prazo.urgente,
+            )
+
+    # 3. AGENDA -> src/services/agenda (TODO: próximo módulo)
+
+    return analises
 
 
 if __name__ == "__main__":
