@@ -192,6 +192,11 @@ Alternativamente, agende `python -m src.main` via **cron** (ex.: de hora em hora
 
 ## 🔌 Indo a Produção (credenciais reais)
 
+> 💡 **Atalho gratuito:** `cp .env.comunica .env` já configura a **captura real
+> via DJEN/CNJ (grátis)** + IA `mock` — roda o pipeline ponta a ponta sem
+> nenhuma credencial. Depois é só trocar `AI_PROVIDER`/`AGENDA_PROVIDER` e
+> informar as chaves para a versão completa.
+
 1. Copie e preencha o `.env`: `cp .env.example .env` (chaves de Jusbrasil,
    Anthropic/Gemini/OpenAI, Google Calendar, notificações).
 2. Troque os provedores: `CAPTURE_PROVIDER=jusbrasil`, `AI_PROVIDER=claude`,
