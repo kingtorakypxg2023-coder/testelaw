@@ -1,0 +1,31 @@
+name: build-executaveis
+
+# Gera os executáveis para Windows, macOS e Linux.
+# - Dispare manualmente (aba Actions -> Run workflow), ou
+# - Crie uma tag de versão:  git tag v0.1.0 && git push --tags
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Instalar dependências de build
+        run: python -m pip install -r requirements-build.txt
+      - name: Gerar executável
+        run: pyinstaller --noconfirm --clean monitor.spec
+      - name: Publicar artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: monitor-diarios-${{ matrix.os }}
+          path: dist/*

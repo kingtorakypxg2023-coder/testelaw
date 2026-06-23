@@ -62,7 +62,10 @@ testelaw/
 ├── requirements.txt
 ├── Dockerfile
 ├── docker-compose.yml
+├── run.py                  # Entry do executável (PyInstaller)
+├── monitor.spec            # Spec do PyInstaller
 ├── src/
+│   ├── cli.py              # CLI unificada (run/scheduler/prazo/healthcheck)
 │   ├── main.py             # Orquestrador do pipeline (ponto de entrada)
 │   ├── scheduler.py        # Execução periódica do pipeline (loop/cron)
 │   ├── add_prazo.py        # CLI: adicionar prazo manual à agenda
@@ -220,6 +223,31 @@ docker run --env-file .env -v "$PWD/data:/app/data" monitor-diarios
 
 ---
 
+## 🖥️ Executável (sem Python)
+
+Gera um binário único (`monitor-diarios`) que roda **sem Python instalado**, com
+todos os comandos: `run`, `scheduler`, `prazo` e `healthcheck`.
+
+```bash
+# Linux/macOS
+./build.sh
+./dist/monitor-diarios healthcheck
+
+# Windows
+build.bat
+dist\monitor-diarios.exe healthcheck
+```
+
+> ⚠️ O PyInstaller **não faz cross-compile**: cada SO gera o seu binário
+> (Linux→ELF, Windows→`.exe`, macOS→Mach-O). Para obter os três sem ter as
+> máquinas, use o **GitHub Actions** (`.github/workflows/build.yml`): dispare em
+> *Actions → Run workflow*, ou crie uma tag (`git tag v0.1.0 && git push --tags`),
+> e baixe os artefatos `monitor-diarios-windows-latest` / `-macos-latest` / `-ubuntu-latest`.
+
+O executável lê o `.env` da **mesma pasta do binário** (ou via variáveis de ambiente).
+
+---
+
 ## 🗺️ Roadmap
 
 - [x] Estrutura base do projeto, configuração e contratos de dados
@@ -230,4 +258,5 @@ docker run --env-file .env -v "$PWD/data:/app/data" monitor-diarios
 - [x] **Persistência + scheduler** — SQLite (evita reprocessar/duplicar) + execução periódica
 - [x] **Notificações** — webhook / Telegram / e-mail (+ mock); alerta de prazos urgentes
 - [x] **Docker + healthcheck** — empacotamento (scheduler) e verificação de prontidão
+- [x] **Executável** (PyInstaller) — binário único + build Win/Mac/Linux via GitHub Actions
 - [x] Cobertura de testes (pytest) cobrindo todos os módulos

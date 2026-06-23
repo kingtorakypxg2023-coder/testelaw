@@ -1,0 +1,4 @@
+# Dependências para gerar o executável (PyInstaller)
+-r requirements.txt
+
+pyinstaller>=6.0

@@ -7,14 +7,19 @@ verdade para a configuração da aplicação.
 """
 from __future__ import annotations
 
+import sys
 from functools import lru_cache
 from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Raiz do projeto (este arquivo está em src/config/settings.py -> sobe 2 níveis)
-BASE_DIR = Path(__file__).resolve().parents[2]
+# Raiz para localizar o `.env`: ao lado do executável (PyInstaller) ou, em
+# execução normal, a raiz do projeto (src/config/settings.py -> sobe 2 níveis).
+if getattr(sys, "frozen", False):
+    BASE_DIR = Path(sys.executable).resolve().parent
+else:
+    BASE_DIR = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
