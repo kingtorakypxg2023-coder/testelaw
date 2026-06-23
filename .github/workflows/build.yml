@@ -23,8 +23,11 @@ jobs:
           python-version: "3.11"
       - name: Instalar dependências de build
         run: python -m pip install -r requirements-build.txt
-      - name: Gerar executável
-        run: pyinstaller --noconfirm --clean monitor.spec
+      - name: Gerar executáveis (CLI + GUI)
+        shell: bash
+        run: |
+          pyinstaller --noconfirm --clean monitor.spec
+          pyinstaller --noconfirm --clean monitor-gui.spec
       - name: Publicar artefato
         uses: actions/upload-artifact@v4
         with:

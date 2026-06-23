@@ -62,10 +62,13 @@ testelaw/
 ├── requirements.txt
 ├── Dockerfile
 ├── docker-compose.yml
-├── run.py                  # Entry do executável (PyInstaller)
-├── monitor.spec            # Spec do PyInstaller
+├── run.py                  # Entry do executável CLI (PyInstaller)
+├── gui_run.py              # Entry do executável de janela (GUI)
+├── monitor.spec            # Spec do executável CLI
+├── monitor-gui.spec        # Spec do executável de janela (GUI)
 ├── src/
 │   ├── cli.py              # CLI unificada (run/scheduler/prazo/healthcheck)
+│   ├── gui.py              # Interface gráfica (janela com abas, Tkinter)
 │   ├── main.py             # Orquestrador do pipeline (ponto de entrada)
 │   ├── scheduler.py        # Execução periódica do pipeline (loop/cron)
 │   ├── add_prazo.py        # CLI: adicionar prazo manual à agenda
@@ -223,6 +226,22 @@ docker run --env-file .env -v "$PWD/data:/app/data" monitor-diarios
 
 ---
 
+## 🪟 Programa com Janela (GUI)
+
+Além da linha de comando, há uma **interface gráfica com abas** (sem terminal):
+
+- **Configurações** — define OAB, provedores (captura/IA/agenda/notificação) e grava o `.env`.
+- **Novo Prazo** — formulário para inserir prazos manualmente.
+- **Prazos** — lista os prazos cadastrados (atualizar / remover).
+- **Monitoramento** — botão "Buscar publicações agora" (roda o pipeline).
+- **Registro** — log do que está acontecendo.
+
+Abrir: execute o **`monitor-diarios-gui`** (duplo-clique no Windows); ou, via
+código, `python -m src.gui` (ou `monitor-diarios gui`). O executável de janela é
+gerado pelo `monitor-gui.spec` (PyInstaller, `console=False`).
+
+---
+
 ## 🖥️ Executável (sem Python)
 
 Gera um binário único (`monitor-diarios`) que roda **sem Python instalado**, com
@@ -259,4 +278,5 @@ O executável lê o `.env` da **mesma pasta do binário** (ou via variáveis de 
 - [x] **Notificações** — webhook / Telegram / e-mail (+ mock); alerta de prazos urgentes
 - [x] **Docker + healthcheck** — empacotamento (scheduler) e verificação de prontidão
 - [x] **Executável** (PyInstaller) — binário único + build Win/Mac/Linux via GitHub Actions
+- [x] **Interface gráfica (GUI)** — janela com abas (Tkinter) + executável de janela
 - [x] Cobertura de testes (pytest) cobrindo todos os módulos

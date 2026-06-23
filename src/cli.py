@@ -1,6 +1,7 @@
 """CLI unificada do Monitor de Diários Oficiais (ponto único do executável).
 
 Comandos:
+    gui            Abre a interface gráfica (janela com abas)
     run            Executa um ciclo do pipeline (captura -> IA -> agenda -> alertas)
     scheduler      Executa o pipeline periodicamente (--intervalo, --ciclos)
     prazo          Gerencia prazos manuais (add | list | remove)
@@ -15,12 +16,14 @@ _USO = """Monitor de Diários Oficiais & Prazos Jurídicos
 Uso: monitor-diarios <comando> [opções]
 
 Comandos:
+  gui                        Abre a interface gráfica (janela com abas)
   run                        Executa um ciclo do pipeline
   scheduler                  Executa o pipeline periodicamente (--intervalo, --ciclos)
   prazo <add|list|remove>    Gerencia prazos manuais
   healthcheck                Verifica a prontidão dos provedores
 
 Exemplos:
+  monitor-diarios gui
   monitor-diarios healthcheck
   monitor-diarios run
   monitor-diarios scheduler --intervalo 3600
@@ -37,7 +40,11 @@ def main(argv: list[str] | None = None) -> None:
 
     comando, resto = argv[0], argv[1:]
 
-    if comando == "run":
+    if comando == "gui":
+        from src.gui import main as gui_main
+
+        gui_main()
+    elif comando == "run":
         from src.main import run
 
         run()

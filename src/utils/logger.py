@@ -1,4 +1,10 @@
-"""Configuração centralizada de logging para a aplicação."""
+"""Configuração centralizada de logging.
+
+Os handlers ficam no logger *raiz*, e cada módulo usa `get_logger(__name__)`
+com propagação ativa — assim a GUI pode anexar seu próprio handler ao raiz e
+capturar tudo. Em modo janela (executável sem console), `sys.stdout` é `None`;
+nesse caso nenhum handler de stream é adicionado (a GUI cuida da exibição).
+"""
 from __future__ import annotations
 
 import logging
@@ -6,23 +12,25 @@ import sys
 
 from src.config.settings import settings
 
-_LOG_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+LOG_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+
+_root_configurado = False
+
+
+def _configurar_root() -> None:
+    global _root_configurado
+    if _root_configurado:
+        return
+    root = logging.getLogger()
+    root.setLevel(settings.log_level.upper())
+    if sys.stdout is not None:  # em app de janela (windowed) não há stdout
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(logging.Formatter(LOG_FORMAT))
+        root.addHandler(handler)
+    _root_configurado = True
 
 
 def get_logger(name: str) -> logging.Logger:
-    """Cria/recupera um logger já configurado com o nível definido em settings.
-
-    Args:
-        name: Nome do logger (use `__name__` no módulo chamador).
-
-    Returns:
-        Instância de `logging.Logger` pronta para uso.
-    """
-    logger = logging.getLogger(name)
-    if not logger.handlers:
-        handler = logging.StreamHandler(sys.stdout)
-        handler.setFormatter(logging.Formatter(_LOG_FORMAT))
-        logger.addHandler(handler)
-        logger.setLevel(settings.log_level.upper())
-        logger.propagate = False
-    return logger
+    """Retorna um logger que propaga para o raiz já configurado."""
+    _configurar_root()
+    return logging.getLogger(name)
