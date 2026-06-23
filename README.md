@@ -62,6 +62,7 @@ testelaw/
 ├── requirements.txt
 ├── src/
 │   ├── main.py             # Orquestrador do pipeline (ponto de entrada)
+│   ├── scheduler.py        # Execução periódica do pipeline (loop/cron)
 │   ├── add_prazo.py        # CLI: adicionar prazo manual à agenda
 │   ├── models.py           # Contratos de dados (Pydantic)
 │   ├── config/
@@ -87,7 +88,8 @@ testelaw/
 │   │   │   ├── mock.py             # Provedor mock (sem credenciais)
 │   │   │   ├── factory.py          # Seleção do provedor (AGENDA_PROVIDER)
 │   │   │   └── eventos.py          # Converte prazos -> EventoAgenda
-│   │   └── manual/        # Prazos manuais (entrada manual -> agenda)
+│   │   ├── manual/        # Prazos manuais (entrada manual -> agenda)
+│   │   └── persistence/   # Estado processado (SQLite) - evita reprocessar/duplicar
 │   └── utils/
 │       ├── logger.py       # Logging centralizado
 │       ├── dates.py        # Parsing de datas (BR e ISO)
@@ -132,6 +134,8 @@ As principais são:
 - `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` / `OPENAI_API_KEY` + `CLAUDE_MODEL` — etapa de IA
 - `AGENDA_PROVIDER` — destino da agenda: `google` ou `mock`
 - `GOOGLE_CALENDAR_CREDENTIALS` / `DEADLINE_REMINDER_DAYS` — agenda e antecedência do lembrete
+- `STATE_STORE` / `STATE_DB_PATH` — persistência do estado (`sqlite` ou `memory`)
+- `SCHEDULE_INTERVAL_SECONDS` — intervalo do scheduler (segundos)
 
 ---
 
@@ -155,6 +159,22 @@ todas as opções. Em código: `registrar_prazo_manual(PrazoManual(...))`.
 
 ---
 
+## ⏱️ Execução Periódica & Persistência
+
+O sistema guarda em **SQLite** o que já foi processado/agendado, então rodar o
+pipeline repetidamente **não reprocessa** publicações (economiza IA) nem
+**duplica** eventos. Para rodar em ciclos:
+
+```bash
+python -m src.scheduler                 # usa SCHEDULE_INTERVAL_SECONDS
+python -m src.scheduler --intervalo 1800
+python -m src.scheduler --ciclos 1      # roda uma vez e sai
+```
+
+Alternativamente, agende `python -m src.main` via **cron** (ex.: de hora em hora).
+
+---
+
 ## 🗺️ Roadmap
 
 - [x] Estrutura base do projeto, configuração e contratos de dados
@@ -162,6 +182,6 @@ todas as opções. Em código: `registrar_prazo_manual(PrazoManual(...))`.
 - [x] **Módulo de Inteligência** (Etapa 2) — Claude/Gemini/OpenAI + mock; data fatal em dias úteis
 - [x] **Módulo de Agenda** (Etapa 3) — Google Calendar + mock; evento/lembrete por prazo
 - [x] **Prazos manuais** (CLI) — inclusão manual com cálculo de data fatal
-- [ ] Persistência (evitar reprocessar publicações) e agendamento (scheduler/cron)
+- [x] **Persistência + scheduler** — SQLite (evita reprocessar/duplicar) + execução periódica
 - [ ] Notificações extra (e-mail / Telegram / webhook)
 - [ ] Cobertura de testes ampliada

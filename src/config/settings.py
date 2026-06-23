@@ -59,6 +59,11 @@ class Settings(BaseSettings):
     google_calendar_id: str = Field(default="primary")
     deadline_reminder_days: int = Field(default=5)
 
+    # --- Persistência & Agendamento ---
+    state_store: str = Field(default="sqlite")  # sqlite | memory
+    state_db_path: str = Field(default="data/monitor.db")
+    schedule_interval_seconds: int = Field(default=3600)
+
     @staticmethod
     def _split_csv(value: str) -> list[str]:
         """Divide uma string separada por vírgulas em itens limpos (sem vazios)."""
