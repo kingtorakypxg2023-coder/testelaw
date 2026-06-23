@@ -173,3 +173,15 @@ class PrazoManual(BaseModel):
                 "Informe 'data_fatal' ou 'prazo_dias' para o prazo manual."
             )
         return self
+
+
+class PrazoManualRegistro(BaseModel):
+    """Registro persistido de um prazo manual (para CRUD)."""
+
+    id: str
+    prazo: PrazoManual
+    data_fatal: date
+    evento_ref: str | None = Field(
+        default=None, description="ID do evento criado na agenda"
+    )
+    criado_em: datetime = Field(default_factory=datetime.now)

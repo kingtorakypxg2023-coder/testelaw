@@ -28,3 +28,7 @@ class MockAgendaProvider(AgendaProvider):
             evento.chave_idempotencia,
         )
         return f"mock-evento-{len(self.eventos_criados)}"
+
+    def remover_evento(self, referencia: str) -> bool:
+        logger.info("[MOCK-AGENDA] Evento removido: %s", referencia)
+        return True

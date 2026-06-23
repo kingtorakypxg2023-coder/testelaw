@@ -64,6 +64,7 @@ testelaw/
 │   ├── main.py             # Orquestrador do pipeline (ponto de entrada)
 │   ├── scheduler.py        # Execução periódica do pipeline (loop/cron)
 │   ├── add_prazo.py        # CLI: adicionar prazo manual à agenda
+│   ├── prazos.py           # CLI: gerir prazos manuais (add/list/remove)
 │   ├── models.py           # Contratos de dados (Pydantic)
 │   ├── config/
 │   │   └── settings.py     # Carregamento das configurações (.env)
@@ -88,7 +89,8 @@ testelaw/
 │   │   │   ├── mock.py             # Provedor mock (sem credenciais)
 │   │   │   ├── factory.py          # Seleção do provedor (AGENDA_PROVIDER)
 │   │   │   └── eventos.py          # Converte prazos -> EventoAgenda
-│   │   ├── manual/        # Prazos manuais (entrada manual -> agenda)
+│   │   ├── manual/        # Prazos manuais (CRUD: add/list/remove)
+│   │   ├── notifications/ # Alertas: webhook / Telegram / e-mail
 │   │   └── persistence/   # Estado processado (SQLite) - evita reprocessar/duplicar
 │   └── utils/
 │       ├── logger.py       # Logging centralizado
@@ -156,7 +158,15 @@ python -m src.add_prazo --descricao "Audiência de instrução" \
 ```
 
 Use `--dias-corridos` para prazos materiais (não processuais) e `--help` para
-todas as opções. Em código: `registrar_prazo_manual(PrazoManual(...))`.
+todas as opções.
+
+**Gerenciar** os prazos manuais cadastrados (listar/remover):
+
+```bash
+python -m src.prazos add --descricao "Protocolar manifestação" --prazo-dias 5
+python -m src.prazos list
+python -m src.prazos remove --id <id>   # remove também o evento na agenda
+```
 
 ---
 

@@ -1,9 +1,8 @@
-"""Inclusão de prazos manuais (entrada alternativa à captura/IA).
+"""Inclusão e gestão de prazos manuais (entrada alternativa à captura/IA).
 
 O usuário informa um prazo diretamente; o sistema calcula a data fatal (quando
-informado em dias) e cria o evento na agenda, reutilizando o mesmo fluxo da
-Etapa 3. Uma chave de idempotência derivada do conteúdo evita duplicar o evento
-caso o mesmo prazo seja registrado mais de uma vez.
+informado em dias) e cria o evento na agenda, reutilizando o fluxo da Etapa 3.
+Os prazos manuais são persistidos (CRUD) com o ID do evento na agenda.
 """
 from __future__ import annotations
 
@@ -11,9 +10,16 @@ import hashlib
 from datetime import date
 
 from src.config.settings import settings
-from src.models import AnalisePublicacao, EventoAgenda, Prazo, PrazoManual
+from src.models import (
+    AnalisePublicacao,
+    EventoAgenda,
+    Prazo,
+    PrazoManual,
+    PrazoManualRegistro,
+)
 from src.services.agenda import AgendaError, get_agenda_provider, montar_eventos
 from src.services.agenda.base import AgendaProvider
+from src.services.manual.repository import ManualPrazoRepository, get_manual_repository
 from src.utils.logger import get_logger
 from src.utils.prazos import calcular_data_fatal
 
@@ -63,29 +69,81 @@ def construir_analise_manual(prazo_manual: PrazoManual) -> AnalisePublicacao:
     )
 
 
+def _resolver_agenda(agenda: AgendaProvider | None) -> AgendaProvider:
+    if agenda is not None:
+        return agenda
+    try:
+        return get_agenda_provider()
+    except AgendaError as exc:
+        logger.warning(
+            "Agenda '%s' indisponível (%s). Usando provedor 'mock'.",
+            settings.agenda_provider,
+            exc,
+        )
+        return get_agenda_provider("mock")
+
+
+def _criar_evento(
+    prazo_manual: PrazoManual,
+    lembrete_dias: int | None,
+    agenda: AgendaProvider | None,
+) -> tuple[EventoAgenda, str | None]:
+    analise = construir_analise_manual(prazo_manual)
+    lembrete = settings.deadline_reminder_days if lembrete_dias is None else lembrete_dias
+    eventos = montar_eventos([analise], lembrete)
+    evento = eventos[0]
+    refs = _resolver_agenda(agenda).criar_eventos([evento])
+    return evento, (refs[0] if refs else None)
+
+
 def registrar_prazo_manual(
     prazo_manual: PrazoManual,
     *,
     lembrete_dias: int | None = None,
     agenda: AgendaProvider | None = None,
 ) -> EventoAgenda:
-    """Cria o evento de agenda para um prazo manual e o devolve."""
-    analise = construir_analise_manual(prazo_manual)
-    lembrete = settings.deadline_reminder_days if lembrete_dias is None else lembrete_dias
-    eventos = montar_eventos([analise], lembrete)
-    if not eventos:  # pragma: no cover - data_fatal sempre presente aqui
-        raise ValueError("Prazo manual sem data fatal; nada a agendar.")
+    """Cria o evento de agenda para um prazo manual e o devolve (sem persistir)."""
+    evento, _ref = _criar_evento(prazo_manual, lembrete_dias, agenda)
+    return evento
 
-    if agenda is None:
+
+def adicionar_prazo_manual(
+    prazo_manual: PrazoManual,
+    *,
+    lembrete_dias: int | None = None,
+    agenda: AgendaProvider | None = None,
+    repository: ManualPrazoRepository | None = None,
+) -> PrazoManualRegistro:
+    """Cria o evento e persiste o prazo manual (CRUD), devolvendo o registro."""
+    repository = repository or get_manual_repository()
+    evento, ref = _criar_evento(prazo_manual, lembrete_dias, agenda)
+    id_ = repository.adicionar(prazo_manual, evento.data, ref)
+    registro = repository.obter(id_)
+    assert registro is not None  # acabou de ser inserido
+    return registro
+
+
+def listar_prazos_manuais(
+    repository: ManualPrazoRepository | None = None,
+) -> list[PrazoManualRegistro]:
+    """Lista os prazos manuais cadastrados."""
+    return (repository or get_manual_repository()).listar()
+
+
+def remover_prazo_manual(
+    id_: str,
+    *,
+    repository: ManualPrazoRepository | None = None,
+    agenda: AgendaProvider | None = None,
+) -> bool:
+    """Remove um prazo manual (e o evento na agenda, se houver)."""
+    repository = repository or get_manual_repository()
+    registro = repository.obter(id_)
+    if registro is None:
+        return False
+    if registro.evento_ref:
         try:
-            agenda = get_agenda_provider()
+            _resolver_agenda(agenda).remover_evento(registro.evento_ref)
         except AgendaError as exc:
-            logger.warning(
-                "Agenda '%s' indisponível (%s). Usando provedor 'mock'.",
-                settings.agenda_provider,
-                exc,
-            )
-            agenda = get_agenda_provider("mock")
-
-    agenda.criar_eventos(eventos)
-    return eventos[0]
+            logger.warning("Não foi possível remover o evento na agenda (%s).", exc)
+    return repository.remover(id_)

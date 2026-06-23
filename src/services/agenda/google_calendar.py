@@ -91,6 +91,18 @@ class GoogleCalendarProvider(AgendaProvider):
         logger.info("Evento criado: %s (%s)", criado.get("id"), evento.titulo)
         return criado.get("id")
 
+    def remover_evento(self, referencia: str) -> bool:
+        try:
+            self._service.events().delete(
+                calendarId=self.calendar_id, eventId=referencia
+            ).execute()
+        except Exception as exc:  # boundary com a API do Google
+            raise AgendaError(
+                f"Falha ao remover evento {referencia} no Google Calendar: {exc}"
+            ) from exc
+        logger.info("Evento removido: %s", referencia)
+        return True
+
     def _evento_existente(self, chave: str) -> bool:
         try:
             resposta = (

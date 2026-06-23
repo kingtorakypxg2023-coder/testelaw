@@ -17,7 +17,7 @@ import argparse
 from pydantic import ValidationError
 
 from src.models import PrazoManual, TipoPrazo
-from src.services.manual import registrar_prazo_manual
+from src.services.manual import adicionar_prazo_manual
 from src.utils.dates import parse_date
 from src.utils.logger import get_logger
 
@@ -74,12 +74,12 @@ def main(argv: list[str] | None = None) -> None:
     except ValidationError as exc:
         parser.error(str(exc))
 
-    evento = registrar_prazo_manual(prazo)
+    registro = adicionar_prazo_manual(prazo)
     logger.info(
-        "Prazo manual registrado: '%s' | data fatal %s | lembrete %d dia(s) antes",
-        evento.titulo,
-        evento.data.isoformat(),
-        evento.lembrete_dias_antes,
+        "Prazo manual registrado: id=%s | '%s' | data fatal %s",
+        registro.id,
+        registro.prazo.descricao,
+        registro.data_fatal.isoformat(),
     )
 
 
