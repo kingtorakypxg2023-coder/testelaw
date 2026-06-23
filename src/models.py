@@ -23,6 +23,35 @@ class FonteCaptura(str, Enum):
     OUTRA = "outra"
 
 
+class TipoMonitoramento(str, Enum):
+    """Critério usado para monitorar publicações."""
+
+    TERMO = "termo"
+    OAB = "oab"
+    PROCESSO = "processo"
+
+
+class AlvoMonitoramento(BaseModel):
+    """Alvo a ser monitorado (entrada da Etapa 1).
+
+    Pode ser um termo/nome livre, um número de OAB (com UF) ou um número de
+    processo no padrão CNJ.
+    """
+
+    tipo: TipoMonitoramento
+    valor: str = Field(..., description="Termo, número da OAB ou número do processo")
+    uf: str | None = Field(default=None, description="UF da OAB (quando tipo=oab)")
+
+    @property
+    def rotulo(self) -> str:
+        """Rótulo legível para logs e para o campo `termo_monitorado`."""
+        if self.tipo is TipoMonitoramento.OAB:
+            return f"OAB {self.valor}" + (f"/{self.uf}" if self.uf else "")
+        if self.tipo is TipoMonitoramento.PROCESSO:
+            return f"Processo {self.valor}"
+        return self.valor
+
+
 class Publicacao(BaseModel):
     """Publicação bruta capturada de um diário oficial (saída da Etapa 1)."""
 

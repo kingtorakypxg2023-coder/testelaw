@@ -64,6 +64,11 @@ testelaw/
 │   │   └── settings.py     # Carregamento das configurações (.env)
 │   ├── services/
 │   │   ├── capture/        # Etapa 1 - Captura (diários oficiais)
+│   │   │   ├── base.py         # Contrato CaptureProvider
+│   │   │   ├── jusbrasil.py    # Cliente da API Jusbrasil
+│   │   │   ├── mock.py         # Provedor mock (sem credenciais)
+│   │   │   ├── factory.py      # Seleção do provedor (CAPTURE_PROVIDER)
+│   │   │   └── targets.py      # Alvos: termos / OAB / processos
 │   │   ├── intelligence/   # Etapa 2 - IA (extração de prazos)
 │   │   └── agenda/         # Etapa 3 - Google Calendar / alertas
 │   └── utils/
@@ -88,8 +93,12 @@ pip install -r requirements.txt
 cp .env.example .env
 # edite o arquivo .env e preencha suas chaves de API
 
-# 4. Executar o pipeline
+# 4. Executar o pipeline (com CAPTURE_PROVIDER=mock roda sem credenciais)
 python -m src.main
+
+# 5. (Opcional) Rodar os testes
+pip install -r requirements-dev.txt
+pytest
 ```
 
 ### Variáveis de Ambiente
@@ -97,8 +106,9 @@ python -m src.main
 As chaves necessárias estão documentadas em [`.env.example`](.env.example).
 As principais são:
 
-- `ESCAVADOR_API_KEY` / `JUSBRASIL_API_KEY` — captura de publicações
-- `MONITOR_TERMS` — termos/nomes a monitorar (separados por vírgula)
+- `CAPTURE_PROVIDER` — provedor de captura ativo: `jusbrasil` ou `mock`
+- `JUSBRASIL_API_KEY` / `ESCAVADOR_API_KEY` — credenciais de captura (Etapa 1)
+- `MONITOR_TERMS` / `MONITOR_OAB` / `MONITOR_PROCESSOS` — alvos monitorados (termos, OAB, processos)
 - `AI_PROVIDER`, `GEMINI_API_KEY` / `OPENAI_API_KEY` — etapa de IA
 - `GOOGLE_CALENDAR_CREDENTIALS` — integração com a agenda
 
@@ -107,8 +117,8 @@ As principais são:
 ## 🗺️ Roadmap
 
 - [x] Estrutura base do projeto, configuração e contratos de dados
-- [ ] **Módulo de Captura** (Etapa 1) — *em desenvolvimento*
-- [ ] Módulo de Inteligência Artificial (Etapa 2)
+- [x] **Módulo de Captura** (Etapa 1) — Jusbrasil + mock, por termo/OAB/processo
+- [ ] Módulo de Inteligência Artificial (Etapa 2) — *próximo*
 - [ ] Módulo de Integração / Agenda (Etapa 3)
 - [ ] Persistência (evitar reprocessar publicações) e agendamento (scheduler)
-- [ ] Testes automatizados
+- [ ] Cobertura de testes ampliada

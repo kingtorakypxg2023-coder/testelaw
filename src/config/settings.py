@@ -34,7 +34,14 @@ class Settings(BaseSettings):
     # --- Etapa 1: Captura (Diários Oficiais) ---
     escavador_api_key: str | None = Field(default=None)
     jusbrasil_api_key: str | None = Field(default=None)
+    jusbrasil_api_base_url: str = Field(default="https://api.jusbrasil.com.br")
+    jusbrasil_search_path: str = Field(default="/v1/publicacoes/busca")
+    # Provedor de captura ativo: "jusbrasil" | "mock"
+    capture_provider: str = Field(default="mock")
+    # Alvos de monitoramento (listas separadas por vírgula)
     monitor_terms: str = Field(default="")
+    monitor_oab: str = Field(default="")
+    monitor_processos: str = Field(default="")
 
     # --- Etapa 2: Inteligência Artificial ---
     ai_provider: str = Field(default="gemini")
@@ -49,10 +56,25 @@ class Settings(BaseSettings):
     google_calendar_id: str = Field(default="primary")
     deadline_reminder_days: int = Field(default=5)
 
+    @staticmethod
+    def _split_csv(value: str) -> list[str]:
+        """Divide uma string separada por vírgulas em itens limpos (sem vazios)."""
+        return [item.strip() for item in value.split(",") if item.strip()]
+
     @property
     def monitor_terms_list(self) -> list[str]:
-        """Retorna os termos monitorados como uma lista limpa (sem vazios)."""
-        return [t.strip() for t in self.monitor_terms.split(",") if t.strip()]
+        """Termos/nomes livres monitorados."""
+        return self._split_csv(self.monitor_terms)
+
+    @property
+    def monitor_oab_list(self) -> list[str]:
+        """Inscrições da OAB monitoradas (ex.: '123456/SP')."""
+        return self._split_csv(self.monitor_oab)
+
+    @property
+    def monitor_processos_list(self) -> list[str]:
+        """Números de processo (CNJ) monitorados."""
+        return self._split_csv(self.monitor_processos)
 
 
 @lru_cache
