@@ -64,6 +64,19 @@ class Settings(BaseSettings):
     state_db_path: str = Field(default="data/monitor.db")
     schedule_interval_seconds: int = Field(default=3600)
 
+    # --- Notificações ---
+    notifier: str = Field(default="mock")  # mock | webhook | telegram | email
+    notify_only_urgent: bool = Field(default=True)
+    webhook_url: str | None = Field(default=None)
+    telegram_bot_token: str | None = Field(default=None)
+    telegram_chat_id: str | None = Field(default=None)
+    smtp_host: str | None = Field(default=None)
+    smtp_port: int = Field(default=587)
+    smtp_user: str | None = Field(default=None)
+    smtp_password: str | None = Field(default=None)
+    smtp_from: str | None = Field(default=None)
+    smtp_to: str | None = Field(default=None)
+
     @staticmethod
     def _split_csv(value: str) -> list[str]:
         """Divide uma string separada por vírgulas em itens limpos (sem vazios)."""

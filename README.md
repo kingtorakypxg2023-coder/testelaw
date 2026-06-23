@@ -136,6 +136,7 @@ As principais são:
 - `GOOGLE_CALENDAR_CREDENTIALS` / `DEADLINE_REMINDER_DAYS` — agenda e antecedência do lembrete
 - `STATE_STORE` / `STATE_DB_PATH` — persistência do estado (`sqlite` ou `memory`)
 - `SCHEDULE_INTERVAL_SECONDS` — intervalo do scheduler (segundos)
+- `NOTIFIER` / `NOTIFY_ONLY_URGENT` — alertas: `mock`, `webhook`, `telegram` ou `email`
 
 ---
 
@@ -183,5 +184,5 @@ Alternativamente, agende `python -m src.main` via **cron** (ex.: de hora em hora
 - [x] **Módulo de Agenda** (Etapa 3) — Google Calendar + mock; evento/lembrete por prazo
 - [x] **Prazos manuais** (CLI) — inclusão manual com cálculo de data fatal
 - [x] **Persistência + scheduler** — SQLite (evita reprocessar/duplicar) + execução periódica
-- [ ] Notificações extra (e-mail / Telegram / webhook)
+- [x] **Notificações** — webhook / Telegram / e-mail (+ mock); alerta de prazos urgentes
 - [ ] Cobertura de testes ampliada

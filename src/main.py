@@ -17,6 +17,7 @@ from src.models import AlvoMonitoramento, AnalisePublicacao, Publicacao, TipoMon
 from src.services.agenda import AgendaError, get_agenda_provider, montar_eventos
 from src.services.capture import carregar_alvos, get_capture_provider
 from src.services.intelligence import IntelligenceError, get_intelligence_provider
+from src.services.notifications import NotifierError, get_notifier
 from src.services.persistence import get_state_store
 from src.utils.logger import get_logger
 
@@ -111,6 +112,24 @@ def run() -> list[AnalisePublicacao]:
         logger.info(
             "Eventos enviados à agenda: %d/%d", sum(1 for ref in refs if ref), len(eventos)
         )
+
+        # 4. NOTIFICAÇÕES -> alertas para os prazos novos (urgentes, por padrão)
+        notificaveis = [
+            evento for evento in eventos
+            if evento.urgente or not settings.notify_only_urgent
+        ]
+        if notificaveis:
+            try:
+                notifier = get_notifier()
+            except NotifierError as exc:
+                logger.warning(
+                    "Notificador '%s' indisponível (%s). Usando provedor 'mock'.",
+                    settings.notifier,
+                    exc,
+                )
+                notifier = get_notifier("mock")
+            notifier.notificar_eventos(notificaveis)
+            logger.info("Notificações enviadas: %d", len(notificaveis))
     else:
         logger.info("Nenhum prazo novo com data fatal para agendar.")
 
