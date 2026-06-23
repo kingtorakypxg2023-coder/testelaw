@@ -60,11 +60,14 @@ testelaw/
 ├── .gitignore
 ├── README.md
 ├── requirements.txt
+├── Dockerfile
+├── docker-compose.yml
 ├── src/
 │   ├── main.py             # Orquestrador do pipeline (ponto de entrada)
 │   ├── scheduler.py        # Execução periódica do pipeline (loop/cron)
 │   ├── add_prazo.py        # CLI: adicionar prazo manual à agenda
 │   ├── prazos.py           # CLI: gerir prazos manuais (add/list/remove)
+│   ├── healthcheck.py      # Verificação de prontidão (credenciais/config)
 │   ├── models.py           # Contratos de dados (Pydantic)
 │   ├── config/
 │   │   └── settings.py     # Carregamento das configurações (.env)
@@ -186,6 +189,31 @@ Alternativamente, agende `python -m src.main` via **cron** (ex.: de hora em hora
 
 ---
 
+## 🔌 Indo a Produção (credenciais reais)
+
+1. Copie e preencha o `.env`: `cp .env.example .env` (chaves de Jusbrasil,
+   Anthropic/Gemini/OpenAI, Google Calendar, notificações).
+2. Troque os provedores: `CAPTURE_PROVIDER=jusbrasil`, `AI_PROVIDER=claude`,
+   `AGENDA_PROVIDER=google`, `NOTIFIER=telegram` (etc.).
+3. **Verifique a prontidão** (sem chamadas de rede):
+   ```bash
+   python -m src.healthcheck
+   ```
+4. Rode um ciclo e confira o resultado: `python -m src.main`.
+
+## 🐳 Docker
+
+```bash
+# Sobe o scheduler continuamente (lê o .env e persiste em ./data)
+docker compose up --build
+
+# Ou via imagem direta:
+docker build -t monitor-diarios .
+docker run --env-file .env -v "$PWD/data:/app/data" monitor-diarios
+```
+
+---
+
 ## 🗺️ Roadmap
 
 - [x] Estrutura base do projeto, configuração e contratos de dados
@@ -195,4 +223,5 @@ Alternativamente, agende `python -m src.main` via **cron** (ex.: de hora em hora
 - [x] **Prazos manuais** (CLI) — inclusão manual com cálculo de data fatal
 - [x] **Persistência + scheduler** — SQLite (evita reprocessar/duplicar) + execução periódica
 - [x] **Notificações** — webhook / Telegram / e-mail (+ mock); alerta de prazos urgentes
-- [ ] Cobertura de testes ampliada
+- [x] **Docker + healthcheck** — empacotamento (scheduler) e verificação de prontidão
+- [x] Cobertura de testes (pytest) cobrindo todos os módulos
