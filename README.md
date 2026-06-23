@@ -62,6 +62,7 @@ testelaw/
 ├── requirements.txt
 ├── src/
 │   ├── main.py             # Orquestrador do pipeline (ponto de entrada)
+│   ├── add_prazo.py        # CLI: adicionar prazo manual à agenda
 │   ├── models.py           # Contratos de dados (Pydantic)
 │   ├── config/
 │   │   └── settings.py     # Carregamento das configurações (.env)
@@ -80,12 +81,13 @@ testelaw/
 │   │   │   ├── mock.py         # Provedor mock (heurística, sem credenciais)
 │   │   │   ├── factory.py      # Seleção do provedor (AI_PROVIDER)
 │   │   │   └── prompts.py      # System prompt / prompt de extração
-│   │   └── agenda/         # Etapa 3 - Google Calendar / alertas
-│   │       ├── base.py             # Contrato AgendaProvider
-│   │       ├── google_calendar.py  # Cliente Google Calendar (OAuth)
-│   │       ├── mock.py             # Provedor mock (sem credenciais)
-│   │       ├── factory.py          # Seleção do provedor (AGENDA_PROVIDER)
-│   │       └── eventos.py          # Converte prazos -> EventoAgenda
+│   │   ├── agenda/         # Etapa 3 - Google Calendar / alertas
+│   │   │   ├── base.py             # Contrato AgendaProvider
+│   │   │   ├── google_calendar.py  # Cliente Google Calendar (OAuth)
+│   │   │   ├── mock.py             # Provedor mock (sem credenciais)
+│   │   │   ├── factory.py          # Seleção do provedor (AGENDA_PROVIDER)
+│   │   │   └── eventos.py          # Converte prazos -> EventoAgenda
+│   │   └── manual/        # Prazos manuais (entrada manual -> agenda)
 │   └── utils/
 │       ├── logger.py       # Logging centralizado
 │       ├── dates.py        # Parsing de datas (BR e ISO)
@@ -133,12 +135,33 @@ As principais são:
 
 ---
 
+## ✍️ Prazos Manuais
+
+Além da captura automática, é possível **incluir prazos manualmente** — eles
+passam pelo mesmo cálculo de data fatal (dias úteis) e vão para a agenda:
+
+```bash
+# Por prazo em dias (data fatal calculada a partir de hoje)
+python -m src.add_prazo --descricao "Protocolar manifestação" \
+    --tipo manifestacao --prazo-dias 5 --processo 1001234-56.2024.8.26.0100
+
+# Por data fatal já conhecida
+python -m src.add_prazo --descricao "Audiência de instrução" \
+    --tipo audiencia --data-fatal 2026-08-01 --urgente
+```
+
+Use `--dias-corridos` para prazos materiais (não processuais) e `--help` para
+todas as opções. Em código: `registrar_prazo_manual(PrazoManual(...))`.
+
+---
+
 ## 🗺️ Roadmap
 
 - [x] Estrutura base do projeto, configuração e contratos de dados
 - [x] **Módulo de Captura** (Etapa 1) — Jusbrasil + mock, por termo/OAB/processo
 - [x] **Módulo de Inteligência** (Etapa 2) — Claude/Gemini/OpenAI + mock; data fatal em dias úteis
 - [x] **Módulo de Agenda** (Etapa 3) — Google Calendar + mock; evento/lembrete por prazo
+- [x] **Prazos manuais** (CLI) — inclusão manual com cálculo de data fatal
 - [ ] Persistência (evitar reprocessar publicações) e agendamento (scheduler/cron)
 - [ ] Notificações extra (e-mail / Telegram / webhook)
 - [ ] Cobertura de testes ampliada

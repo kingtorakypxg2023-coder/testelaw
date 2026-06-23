@@ -12,7 +12,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class FonteCaptura(str, Enum):
@@ -143,3 +143,33 @@ class EventoAgenda(BaseModel):
         ..., description="Chave estável para evitar eventos duplicados"
     )
     urgente: bool = Field(default=False)
+
+
+class PrazoManual(BaseModel):
+    """Prazo informado manualmente pelo usuário (entrada alternativa à captura).
+
+    Deve conter `data_fatal` (data já conhecida) OU `prazo_dias` (o sistema
+    calcula a data fatal a partir de `data_base`, padrão: hoje).
+    """
+
+    tipo: TipoPrazo = Field(default=TipoPrazo.OUTRO)
+    descricao: str = Field(..., description="Descrição da ação/prazo")
+    numero_processo: str | None = Field(default=None)
+    data_fatal: date | None = Field(default=None, description="Data limite, se já conhecida")
+    prazo_dias: int | None = Field(
+        default=None, description="Prazo em dias (calcula a data fatal a partir de data_base)"
+    )
+    data_base: date | None = Field(
+        default=None, description="Data inicial da contagem do prazo (padrão: hoje)"
+    )
+    dias_uteis: bool = Field(default=True, description="Contar em dias úteis (CPC) ou corridos")
+    urgente: bool = Field(default=False)
+    observacoes: str | None = Field(default=None)
+
+    @model_validator(mode="after")
+    def _exige_data_ou_prazo(self) -> "PrazoManual":
+        if self.data_fatal is None and self.prazo_dias is None:
+            raise ValueError(
+                "Informe 'data_fatal' ou 'prazo_dias' para o prazo manual."
+            )
+        return self
