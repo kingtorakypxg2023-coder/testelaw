@@ -6,6 +6,7 @@ name: build-executaveis
 on:
   workflow_dispatch:
   push:
+    branches: ["claude/confident-bardeen-bqwhtn"]
     tags: ["v*"]
 
 jobs:
