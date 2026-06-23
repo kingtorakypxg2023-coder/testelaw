@@ -22,6 +22,10 @@ def get_capture_provider(nome: str | None = None) -> CaptureProvider:
         from src.services.capture.mock import MockCaptureProvider
 
         return MockCaptureProvider()
+    if nome in ("comunica", "djen", "cnj"):
+        from src.services.capture.comunica import ComunicaProvider
+
+        return ComunicaProvider()
     if nome == "jusbrasil":
         from src.services.capture.jusbrasil import JusbrasilClient
 

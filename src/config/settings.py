@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     jusbrasil_api_key: str | None = Field(default=None)
     jusbrasil_api_base_url: str = Field(default="https://api.jusbrasil.com.br")
     jusbrasil_search_path: str = Field(default="/v1/publicacoes/busca")
+    # DJEN / Comunica (CNJ) — gratuito, sem credencial
+    comunica_api_base_url: str = Field(default="https://comunicaapi.pje.jus.br")
+    comunica_search_path: str = Field(default="/api/v1/comunicacao")
+    comunica_page_size: int = Field(default=100)
     # Provedor de captura ativo: "jusbrasil" | "mock"
     capture_provider: str = Field(default="mock")
     # Alvos de monitoramento (listas separadas por vírgula)

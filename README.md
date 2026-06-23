@@ -17,8 +17,8 @@ O pipeline é dividido em **3 etapas** desacopladas:
 │  1. CAPTURA      │     │  2. INTELIGÊNCIA    │     │  3. INTEGRAÇÃO/AGENDA│
 │                  │     │     ARTIFICIAL      │     │                      │
 │  APIs de diários │ ──► │ LLM Claude/Gemini/  │ ──► │  Google Calendar     │
-│  (Jusbrasil /    │     │  OpenAI — extrai    │     │  / alertas           │
-│   Escavador)     │     │  prazos em JSON     │     │                      │
+│  (DJEN/CNJ,      │     │  OpenAI — extrai    │     │  / alertas           │
+│   Jusbrasil)     │     │  prazos em JSON     │     │                      │
 └──────────────────┘     └─────────────────────┘     └──────────────────────┘
        │                          │                            │
    Publicacao              AnalisePublicacao                 Prazo
@@ -74,6 +74,7 @@ testelaw/
 │   ├── services/
 │   │   ├── capture/        # Etapa 1 - Captura (diários oficiais)
 │   │   │   ├── base.py         # Contrato CaptureProvider
+│   │   │   ├── comunica.py     # DJEN/Comunica (CNJ) — gratuito, sem credencial
 │   │   │   ├── jusbrasil.py    # Cliente da API Jusbrasil
 │   │   │   ├── mock.py         # Provedor mock (sem credenciais)
 │   │   │   ├── factory.py      # Seleção do provedor (CAPTURE_PROVIDER)
@@ -132,8 +133,8 @@ pytest
 As chaves necessárias estão documentadas em [`.env.example`](.env.example).
 As principais são:
 
-- `CAPTURE_PROVIDER` — provedor de captura ativo: `jusbrasil` ou `mock`
-- `JUSBRASIL_API_KEY` / `ESCAVADOR_API_KEY` — credenciais de captura (Etapa 1)
+- `CAPTURE_PROVIDER` — captura: `comunica` (DJEN/CNJ, grátis), `jusbrasil`, `escavador` ou `mock`
+- `JUSBRASIL_API_KEY` / `ESCAVADOR_API_KEY` — credenciais (apenas para as fontes pagas)
 - `MONITOR_TERMS` / `MONITOR_OAB` / `MONITOR_PROCESSOS` — alvos monitorados (termos, OAB, processos)
 - `AI_PROVIDER` — provedor de IA: `claude` (padrão), `gemini`, `openai` ou `mock`
 - `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` / `OPENAI_API_KEY` + `CLAUDE_MODEL` — etapa de IA
@@ -217,7 +218,7 @@ docker run --env-file .env -v "$PWD/data:/app/data" monitor-diarios
 ## 🗺️ Roadmap
 
 - [x] Estrutura base do projeto, configuração e contratos de dados
-- [x] **Módulo de Captura** (Etapa 1) — Jusbrasil + mock, por termo/OAB/processo
+- [x] **Módulo de Captura** (Etapa 1) — DJEN/CNJ (grátis) + Jusbrasil + mock; por termo/OAB/processo
 - [x] **Módulo de Inteligência** (Etapa 2) — Claude/Gemini/OpenAI + mock; data fatal em dias úteis
 - [x] **Módulo de Agenda** (Etapa 3) — Google Calendar + mock; evento/lembrete por prazo
 - [x] **Prazos manuais** (CLI) — inclusão manual com cálculo de data fatal

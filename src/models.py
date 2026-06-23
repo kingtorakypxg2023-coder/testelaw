@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field, model_validator
 class FonteCaptura(str, Enum):
     """Origem da publicação capturada."""
 
+    COMUNICA = "comunica"
     ESCAVADOR = "escavador"
     JUSBRASIL = "jusbrasil"
     OUTRA = "outra"

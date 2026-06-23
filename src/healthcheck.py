@@ -36,6 +36,10 @@ def _captura(s: Settings) -> StatusComponente:
     prov = s.capture_provider.strip().lower()
     if prov in _MOCKS:
         return StatusComponente("Captura", prov, "mock", "dados simulados")
+    if prov in ("comunica", "djen", "cnj"):
+        return StatusComponente(
+            "Captura", "comunica/DJEN", "ok", "API pública gratuita (CNJ), sem credencial"
+        )
     if prov == "jusbrasil":
         ok = bool(s.jusbrasil_api_key)
         return StatusComponente(
