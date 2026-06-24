@@ -17,6 +17,7 @@ from src.models import AlvoMonitoramento, AnalisePublicacao, Publicacao, TipoMon
 from src.services.agenda import AgendaError, get_agenda_provider, montar_eventos
 from src.services.capture import carregar_alvos, get_capture_provider
 from src.services.intelligence import IntelligenceError, get_intelligence_provider
+from src.services.manual import salvar_prazos_capturados
 from src.services.notifications import NotifierError, get_notifier
 from src.services.persistence import get_state_store
 from src.utils.logger import get_logger
@@ -132,6 +133,14 @@ def run() -> list[AnalisePublicacao]:
             logger.info("Notificações enviadas: %d", len(notificaveis))
     else:
         logger.info("Nenhum prazo novo com data fatal para agendar.")
+
+    # Registra os prazos extraídos na lista (aparecem na aba "Prazos" da GUI).
+    try:
+        novos_prazos = salvar_prazos_capturados(analises)
+        if novos_prazos:
+            logger.info("Prazos adicionados à lista: %d", novos_prazos)
+    except Exception:  # noqa: BLE001 - persistir a lista não deve quebrar o ciclo
+        logger.exception("Falha ao registrar prazos capturados na lista")
 
     # Marca as publicações processadas ao fim do ciclo.
     for pub in novas:

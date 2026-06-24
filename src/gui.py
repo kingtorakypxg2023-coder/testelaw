@@ -10,6 +10,7 @@ import logging
 import queue
 import threading
 import tkinter as tk
+from datetime import date
 from tkinter import messagebox, ttk
 from tkinter.scrolledtext import ScrolledText
 
@@ -236,15 +237,17 @@ class App(tk.Tk):
     def _aba_prazos(self) -> None:
         frame = ttk.Frame(self._nb)
         self._nb.add(frame, text="Prazos")
-        colunas = ("data", "tipo", "urgente", "descricao", "processo", "id")
+        colunas = ("data", "situacao", "origem", "tipo", "urgente", "descricao", "processo", "id")
         self._tree = ttk.Treeview(frame, columns=colunas, show="headings", height=15)
         for col, titulo, largura in [
-            ("data", "Data fatal", 90),
-            ("tipo", "Tipo", 110),
-            ("urgente", "Urg.", 50),
-            ("descricao", "Descrição", 320),
-            ("processo", "Processo", 175),
-            ("id", "ID", 110),
+            ("data", "Data fatal", 85),
+            ("situacao", "Situação", 75),
+            ("origem", "Origem", 70),
+            ("tipo", "Tipo", 95),
+            ("urgente", "Urg.", 45),
+            ("descricao", "Descrição", 300),
+            ("processo", "Processo", 150),
+            ("id", "ID", 90),
         ]:
             self._tree.heading(col, text=titulo)
             self._tree.column(col, width=largura, anchor="w")
@@ -252,10 +255,14 @@ class App(tk.Tk):
 
         barra = ttk.Frame(frame)
         barra.pack(fill="x", padx=6, pady=4)
-        ttk.Button(barra, text="Atualizar", command=self._atualizar_prazos).pack(side="left")
+        ttk.Label(
+            barra, text="Pendentes (capturados + manuais), ordenados por data fatal.",
+            foreground="#666",
+        ).pack(side="left")
         ttk.Button(barra, text="Remover selecionado", command=self._remover_prazo).pack(
-            side="left", padx=6
+            side="right"
         )
+        ttk.Button(barra, text="Atualizar", command=self._atualizar_prazos).pack(side="right", padx=6)
 
     def _atualizar_prazos(self) -> None:
         if not hasattr(self, "_tree"):
@@ -267,11 +274,16 @@ class App(tk.Tk):
         except Exception as exc:
             logger.warning("Falha ao listar prazos: %s", exc)
             registros = []
+        hoje = date.today()
         for reg in registros:
+            situacao = "Pendente" if reg.data_fatal >= hoje else "Vencido"
+            origem = "Capturado" if reg.origem == "captura" else "Manual"
             self._tree.insert(
                 "", "end",
                 values=(
                     reg.data_fatal.strftime("%d/%m/%Y"),
+                    situacao,
+                    origem,
                     reg.prazo.tipo.value,
                     "SIM" if reg.prazo.urgente else "",
                     reg.prazo.descricao,
@@ -286,9 +298,9 @@ class App(tk.Tk):
             messagebox.showinfo("Remover", "Selecione um prazo na lista.")
             return
         valores = self._tree.item(selecao[0]).get("values") or []
-        if len(valores) < 6:
+        if len(valores) < 8:
             return
-        id_ = str(valores[5])
+        id_ = str(valores[7])
         if not messagebox.askyesno("Remover", "Remover o prazo selecionado?"):
             return
         try:
@@ -369,6 +381,7 @@ class App(tk.Tk):
                     self._btn_buscar.config(state="normal")
                     self._status.config(text=f"Concluído. Prazos extraídos: {dado}.")
                     self._atualizar_prazos()
+                    self._nb.select(2)  # vai direto para a aba Prazos
                 elif tipo == "buscar_erro":
                     self._btn_buscar.config(state="normal")
                     self._status.config(text="Erro na busca (veja a aba Registro).")

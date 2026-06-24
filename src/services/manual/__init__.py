@@ -9,6 +9,7 @@ from src.services.manual.service import (
     listar_prazos_manuais,
     registrar_prazo_manual,
     remover_prazo_manual,
+    salvar_prazos_capturados,
 )
 
 __all__ = [
@@ -19,4 +20,5 @@ __all__ = [
     "listar_prazos_manuais",
     "registrar_prazo_manual",
     "remover_prazo_manual",
+    "salvar_prazos_capturados",
 ]

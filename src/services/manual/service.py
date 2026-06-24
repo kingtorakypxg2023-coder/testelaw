@@ -136,7 +136,7 @@ def remover_prazo_manual(
     repository: ManualPrazoRepository | None = None,
     agenda: AgendaProvider | None = None,
 ) -> bool:
-    """Remove um prazo manual (e o evento na agenda, se houver)."""
+    """Remove um prazo (manual ou capturado) e o evento na agenda, se houver."""
     repository = repository or get_manual_repository()
     registro = repository.obter(id_)
     if registro is None:
@@ -147,3 +147,39 @@ def remover_prazo_manual(
         except AgendaError as exc:
             logger.warning("Não foi possível remover o evento na agenda (%s).", exc)
     return repository.remover(id_)
+
+
+def salvar_prazos_capturados(
+    analises: list[AnalisePublicacao],
+    repository: ManualPrazoRepository | None = None,
+) -> int:
+    """Persiste os prazos extraídos das publicações (origem=captura), sem duplicar.
+
+    Faz com que os prazos capturados apareçam na mesma lista dos manuais.
+    Retorna a quantidade de prazos novos registrados.
+    """
+    repository = repository or get_manual_repository()
+    novos = 0
+    for analise in analises:
+        for prazo in analise.prazos:
+            if prazo.data_fatal is None:
+                continue
+            chave = (
+                f"{analise.id_externo}:{prazo.tipo.value}:{prazo.data_fatal.isoformat()}"
+            )
+            if repository.existe_chave(chave):
+                continue
+            registro = PrazoManual(
+                tipo=prazo.tipo,
+                descricao=prazo.descricao,
+                numero_processo=analise.numero_processo,
+                data_fatal=prazo.data_fatal,
+                prazo_dias=prazo.prazo_dias,
+                urgente=prazo.urgente,
+                observacoes=prazo.observacoes,
+            )
+            repository.adicionar(
+                registro, prazo.data_fatal, evento_ref=None, origem="captura", chave=chave
+            )
+            novos += 1
+    return novos

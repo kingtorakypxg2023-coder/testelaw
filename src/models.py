@@ -177,7 +177,7 @@ class PrazoManual(BaseModel):
 
 
 class PrazoManualRegistro(BaseModel):
-    """Registro persistido de um prazo manual (para CRUD)."""
+    """Registro persistido de um prazo (manual ou capturado), para a lista/CRUD."""
 
     id: str
     prazo: PrazoManual
@@ -185,4 +185,5 @@ class PrazoManualRegistro(BaseModel):
     evento_ref: str | None = Field(
         default=None, description="ID do evento criado na agenda"
     )
+    origem: str = Field(default="manual", description="manual | captura")
     criado_em: datetime = Field(default_factory=datetime.now)
