@@ -265,6 +265,20 @@ class App(tk.Tk):
         # que estraga números de processo e zeros à esquerda).
         self._linhas: dict[str, PrazoManualRegistro] = {}
 
+        # Aviso quando a captura está em modo de demonstração (dados fictícios).
+        if settings.capture_provider.strip().lower() in ("mock", "fake", "stub"):
+            ttk.Label(
+                frame,
+                text=(
+                    "⚠ MODO DEMONSTRAÇÃO: os processos abaixo são fictícios "
+                    "(exemplos). Vá em Configurações, selecione Captura = "
+                    "'comunica' (DJEN) e informe a sua OAB para ver processos reais."
+                ),
+                foreground="#a00000",
+                wraplength=880,
+                justify="left",
+            ).pack(fill="x", padx=8, pady=(8, 0))
+
         barra = ttk.Frame(frame)
         barra.pack(fill="x", padx=6, pady=(8, 4))
         ttk.Button(
@@ -279,6 +293,9 @@ class App(tk.Tk):
         ttk.Button(barra, text="Remover selecionado", command=self._remover_prazo).pack(
             side="left", padx=6
         )
+        ttk.Button(
+            barra, text="Limpar capturados", command=self._limpar_capturados
+        ).pack(side="left")
 
         # Tabela com barras de rolagem vertical e horizontal.
         container = ttk.Frame(frame)
@@ -379,6 +396,35 @@ class App(tk.Tk):
             return
         if ok:
             logger.info("Prazo removido: %s", reg.id)
+        self._atualizar_prazos()
+
+    def _limpar_capturados(self) -> None:
+        """Remove todos os prazos de origem 'captura' (inclui os de demonstração)."""
+        try:
+            registros = listar_prazos_manuais()
+        except Exception as exc:
+            messagebox.showerror("Erro", str(exc))
+            return
+        capturados = [r for r in registros if r.origem == "captura"]
+        if not capturados:
+            messagebox.showinfo(
+                "Limpar capturados", "Não há prazos capturados na lista."
+            )
+            return
+        if not messagebox.askyesno(
+            "Limpar capturados",
+            f"Remover {len(capturados)} prazo(s) capturado(s) da lista? "
+            "Os prazos cadastrados manualmente serão mantidos.",
+        ):
+            return
+        removidos = 0
+        for reg in capturados:
+            try:
+                if remover_prazo_manual(reg.id):
+                    removidos += 1
+            except Exception:  # noqa: BLE001
+                logger.exception("Falha ao remover prazo capturado %s", reg.id)
+        logger.info("Prazos capturados removidos: %d", removidos)
         self._atualizar_prazos()
 
     def _copiar_texto(self, texto: str) -> None:

@@ -44,12 +44,21 @@ def run() -> list[AnalisePublicacao]:
 
     alvos = carregar_alvos()
     if not alvos:
-        alvos = [AlvoMonitoramento(tipo=TipoMonitoramento.OAB, valor="123456", uf="SP")]
-        logger.warning(
-            "Nenhum alvo configurado (MONITOR_TERMS/MONITOR_OAB/MONITOR_PROCESSOS). "
-            "Usando alvo de demonstração: %s",
-            alvos[0].rotulo,
-        )
+        # Só inventamos um alvo de demonstração no modo mock. Com um provedor
+        # real (DJEN), buscar uma OAB fictícia traria dados de terceiros — então
+        # exigimos que o usuário configure a sua OAB/processo antes de buscar.
+        if settings.capture_provider.strip().lower() in ("mock", "fake", "stub"):
+            alvos = [AlvoMonitoramento(tipo=TipoMonitoramento.OAB, valor="123456", uf="SP")]
+            logger.warning(
+                "Nenhum alvo configurado. Usando alvo de demonstração (modo mock): %s",
+                alvos[0].rotulo,
+            )
+        else:
+            logger.warning(
+                "Nenhum alvo configurado. Informe a sua OAB (ou número de "
+                "processo) na aba Configurações para buscar publicações reais."
+            )
+            return []
     logger.info("Alvos monitorados (%d): %s", len(alvos), ", ".join(a.rotulo for a in alvos))
 
     # 1. CAPTURA -> busca publicações e descarta as já processadas

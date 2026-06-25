@@ -45,8 +45,9 @@ class Settings(BaseSettings):
     comunica_api_base_url: str = Field(default="https://comunicaapi.pje.jus.br")
     comunica_search_path: str = Field(default="/api/v1/comunicacao")
     comunica_page_size: int = Field(default=100)
-    # Provedor de captura ativo: "jusbrasil" | "mock"
-    capture_provider: str = Field(default="mock")
+    # Provedor de captura ativo: "comunica" (DJEN/CNJ, gratuito e real) |
+    # "mock" (demonstração, dados fictícios) | "jusbrasil"
+    capture_provider: str = Field(default="comunica")
     # Alvos de monitoramento (listas separadas por vírgula)
     monitor_terms: str = Field(default="")
     monitor_oab: str = Field(default="")
