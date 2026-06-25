@@ -36,11 +36,13 @@ class IntelligenceProvider(ABC):
         """Analisa uma publicação e devolve o resultado com a data fatal calculada."""
         extraida = self._extrair(publicacao)
         prazos = [
-            self._para_prazo(pe, publicacao.data_publicacao) for pe in extraida.prazos
+            self._para_prazo(pe, publicacao.data_publicacao, extraida.cliente)
+            for pe in extraida.prazos
         ]
         return AnalisePublicacao(
             id_externo=publicacao.id_externo,
             numero_processo=publicacao.numero_processo,
+            cliente=extraida.cliente,
             resumo=extraida.resumo,
             possui_prazo=extraida.possui_prazo or bool(prazos),
             prazos=prazos,
@@ -53,7 +55,9 @@ class IntelligenceProvider(ABC):
         return [self.analisar(p) for p in publicacoes]
 
     @staticmethod
-    def _para_prazo(extraido: PrazoExtraido, data_base: date | None) -> Prazo:
+    def _para_prazo(
+        extraido: PrazoExtraido, data_base: date | None, cliente: str | None = None
+    ) -> Prazo:
         """Converte a extração da IA em `Prazo`, calculando a data fatal em código."""
         if extraido.prazo_dias is not None:
             data_fatal = calcular_data_fatal(data_base, extraido.prazo_dias)
@@ -62,6 +66,7 @@ class IntelligenceProvider(ABC):
         return Prazo(
             tipo=extraido.tipo,
             descricao=extraido.descricao,
+            cliente=cliente,
             prazo_dias=extraido.prazo_dias,
             data_referencia=extraido.data_referencia,
             data_fatal=data_fatal,

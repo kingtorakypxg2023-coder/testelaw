@@ -21,6 +21,8 @@ designada para 15/07/2026), preencha `data_referencia` no formato AAAA-MM-DD.
 pagamento, cumprimento, outro.
 - Marque `urgente=true` para prazos curtos/peremptórios ou audiências próximas.
 - Escreva um `resumo` objetivo do teor da publicação, em português.
+- Identifique o `cliente` (nome do autor do processo / parte representada). Se \
+não for possível identificar com clareza, deixe nulo.
 - Se não houver prazo nem ação a cumprir, retorne `possui_prazo=false` e \
 `prazos=[]`.
 """

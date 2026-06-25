@@ -5,8 +5,15 @@ from datetime import date
 
 import pytest
 
-from src.models import FonteCaptura, Publicacao, TipoPrazo
+from src.models import (
+    AnaliseExtraida,
+    FonteCaptura,
+    PrazoExtraido,
+    Publicacao,
+    TipoPrazo,
+)
 from src.services.intelligence import get_intelligence_provider
+from src.services.intelligence.base import IntelligenceProvider
 from src.services.intelligence.mock import MockIntelligenceProvider
 
 
@@ -57,6 +64,30 @@ def test_mock_sem_prazo() -> None:
 
     assert analise.possui_prazo is False
     assert analise.prazos == []
+
+
+class _ClienteStubProvider(IntelligenceProvider):
+    """Provedor de teste que devolve uma extração com cliente preenchido."""
+
+    def _extrair(self, publicacao: Publicacao) -> AnaliseExtraida:
+        return AnaliseExtraida(
+            resumo="intimação",
+            cliente="João da Silva",
+            possui_prazo=True,
+            prazos=[
+                PrazoExtraido(
+                    tipo=TipoPrazo.CONTESTACAO, descricao="Contestar", prazo_dias=15
+                )
+            ],
+        )
+
+
+def test_cliente_propaga_para_analise_e_prazo() -> None:
+    analise = _ClienteStubProvider().analisar(_publicacao("texto qualquer"))
+
+    # O cliente extraído deve aparecer tanto na análise quanto em cada prazo.
+    assert analise.cliente == "João da Silva"
+    assert analise.prazos[0].cliente == "João da Silva"
 
 
 def test_factory_retorna_mock() -> None:

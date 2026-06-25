@@ -172,6 +172,7 @@ def salvar_prazos_capturados(
             registro = PrazoManual(
                 tipo=prazo.tipo,
                 descricao=prazo.descricao,
+                cliente=prazo.cliente or analise.cliente,
                 numero_processo=analise.numero_processo,
                 data_fatal=prazo.data_fatal,
                 prazo_dias=prazo.prazo_dias,

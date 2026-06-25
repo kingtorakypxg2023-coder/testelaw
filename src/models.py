@@ -84,6 +84,9 @@ class Prazo(BaseModel):
 
     tipo: TipoPrazo = Field(default=TipoPrazo.OUTRO)
     descricao: str = Field(..., description="Resumo objetivo da ação a ser tomada")
+    cliente: str | None = Field(
+        default=None, description="Autor do processo / parte representada (cliente)"
+    )
     prazo_dias: int | None = Field(
         default=None, description="Quantidade de dias do prazo, se informado na publicação"
     )
@@ -118,6 +121,9 @@ class AnaliseExtraida(BaseModel):
     """Saída estruturada BRUTA da IA para uma publicação (schema enviado ao modelo)."""
 
     resumo: str = Field(..., description="Resumo objetivo do teor da publicação")
+    cliente: str | None = Field(
+        default=None, description="Nome do autor do processo / parte representada (cliente)"
+    )
     possui_prazo: bool = Field(default=False)
     prazos: list[PrazoExtraido] = Field(default_factory=list)
 
@@ -127,6 +133,7 @@ class AnalisePublicacao(BaseModel):
 
     id_externo: str = Field(..., description="Referência à publicação de origem")
     numero_processo: str | None = Field(default=None)
+    cliente: str | None = Field(default=None, description="Autor do processo / cliente")
     resumo: str = Field(..., description="Resumo objetivo do teor da publicação")
     possui_prazo: bool = Field(default=False)
     prazos: list[Prazo] = Field(default_factory=list)
@@ -155,6 +162,7 @@ class PrazoManual(BaseModel):
 
     tipo: TipoPrazo = Field(default=TipoPrazo.OUTRO)
     descricao: str = Field(..., description="Descrição da ação/prazo")
+    cliente: str | None = Field(default=None, description="Autor do processo / cliente")
     numero_processo: str | None = Field(default=None)
     data_fatal: date | None = Field(default=None, description="Data limite, se já conhecida")
     prazo_dias: int | None = Field(
