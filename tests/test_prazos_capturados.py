@@ -52,6 +52,24 @@ def test_salvar_prazos_ignora_sem_data_fatal() -> None:
     assert listar_prazos_manuais(repository=repo) == []
 
 
+def test_lista_ordenada_por_data_e_tipo() -> None:
+    from src.models import PrazoManual
+
+    repo = MemoryManualPrazoRepository()
+    # Mesma data fatal, tipos diferentes -> deve ordenar por tipo dentro da data.
+    repo.adicionar(PrazoManual(tipo=TipoPrazo.RECURSO, descricao="r", data_fatal=date(2026, 7, 1)), date(2026, 7, 1))
+    repo.adicionar(PrazoManual(tipo=TipoPrazo.CONTESTACAO, descricao="c", data_fatal=date(2026, 7, 1)), date(2026, 7, 1))
+    repo.adicionar(PrazoManual(tipo=TipoPrazo.AUDIENCIA, descricao="a", data_fatal=date(2026, 6, 20)), date(2026, 6, 20))
+
+    lista = listar_prazos_manuais(repository=repo)
+    chaves = [(r.data_fatal.isoformat(), r.prazo.tipo.value) for r in lista]
+    assert chaves == [
+        ("2026-06-20", "audiencia"),
+        ("2026-07-01", "contestacao"),  # contestacao antes de recurso (ordem alfabética)
+        ("2026-07-01", "recurso"),
+    ]
+
+
 def test_lista_unifica_manual_e_capturado() -> None:
     repo = MemoryManualPrazoRepository()
     # captura

@@ -71,7 +71,9 @@ class MemoryManualPrazoRepository(ManualPrazoRepository):
         return chave in self._chaves
 
     def listar(self) -> list[PrazoManualRegistro]:
-        return sorted(self._dados.values(), key=lambda r: r.data_fatal)
+        return sorted(
+            self._dados.values(), key=lambda r: (r.data_fatal, r.prazo.tipo.value)
+        )
 
     def obter(self, id_: str) -> PrazoManualRegistro | None:
         return self._dados.get(id_)
@@ -153,9 +155,11 @@ class SqliteManualPrazoRepository(ManualPrazoRepository):
     def listar(self) -> list[PrazoManualRegistro]:
         cur = self._conn.execute(
             "SELECT id, payload, data_fatal, evento_ref, origem, criado_em "
-            "FROM prazos_manuais ORDER BY data_fatal"
+            "FROM prazos_manuais"
         )
-        return [self._to_registro(row) for row in cur.fetchall()]
+        registros = [self._to_registro(row) for row in cur.fetchall()]
+        # Ordena por data fatal e, dentro da mesma data, por tipo de prazo.
+        return sorted(registros, key=lambda r: (r.data_fatal, r.prazo.tipo.value))
 
     def obter(self, id_: str) -> PrazoManualRegistro | None:
         cur = self._conn.execute(
