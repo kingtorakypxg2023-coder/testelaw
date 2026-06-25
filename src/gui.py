@@ -67,7 +67,10 @@ class App(tk.Tk):
 
         self._atualizar_prazos()
         self.after(150, self._drenar_filas)
+        self._nb.select(2)  # abre direto na aba Prazos
         logger.info("Interface iniciada. Captura=%s | OAB=%s", settings.capture_provider, settings.monitor_oab or "(nenhuma)")
+        # Alimenta a lista automaticamente ao iniciar e, depois, periodicamente.
+        self.after(800, self._auto_buscar)
 
     # ------------------------------------------------------------- Config
     def _aba_config(self) -> None:
@@ -237,6 +240,19 @@ class App(tk.Tk):
     def _aba_prazos(self) -> None:
         frame = ttk.Frame(self._nb)
         self._nb.add(frame, text="Prazos")
+
+        barra = ttk.Frame(frame)
+        barra.pack(fill="x", padx=6, pady=(8, 4))
+        ttk.Button(
+            barra, text="Buscar publicações agora", command=self._buscar
+        ).pack(side="left")
+        ttk.Button(barra, text="Atualizar", command=self._atualizar_prazos).pack(
+            side="left", padx=6
+        )
+        ttk.Button(barra, text="Remover selecionado", command=self._remover_prazo).pack(
+            side="left"
+        )
+
         colunas = ("data", "situacao", "origem", "tipo", "urgente", "descricao", "processo", "id")
         self._tree = ttk.Treeview(frame, columns=colunas, show="headings", height=15)
         for col, titulo, largura in [
@@ -253,16 +269,8 @@ class App(tk.Tk):
             self._tree.column(col, width=largura, anchor="w")
         self._tree.pack(fill="both", expand=True, padx=6, pady=6)
 
-        barra = ttk.Frame(frame)
-        barra.pack(fill="x", padx=6, pady=4)
-        ttk.Label(
-            barra, text="Pendentes (capturados + manuais), ordenados por data fatal.",
-            foreground="#666",
-        ).pack(side="left")
-        ttk.Button(barra, text="Remover selecionado", command=self._remover_prazo).pack(
-            side="right"
-        )
-        ttk.Button(barra, text="Atualizar", command=self._atualizar_prazos).pack(side="right", padx=6)
+        self._prazos_status = ttk.Label(frame, text="", foreground="#666")
+        self._prazos_status.pack(anchor="w", padx=8, pady=(0, 6))
 
     def _atualizar_prazos(self) -> None:
         if not hasattr(self, "_tree"):
@@ -291,6 +299,17 @@ class App(tk.Tk):
                     reg.id,
                 ),
             )
+        if hasattr(self, "_prazos_status"):
+            if not registros:
+                self._prazos_status.config(
+                    text="Nenhum prazo ainda. Clique em 'Buscar publicações agora' "
+                    "(busca no diário pela sua OAB) ou cadastre em 'Novo Prazo'."
+                )
+            else:
+                pendentes = sum(1 for r in registros if r.data_fatal >= hoje)
+                self._prazos_status.config(
+                    text=f"{len(registros)} prazo(s) na lista — {pendentes} pendente(s)."
+                )
 
     def _remover_prazo(self) -> None:
         selecao = self._tree.selection()
@@ -336,11 +355,24 @@ class App(tk.Tk):
         self._status = ttk.Label(frame, text="")
         self._status.pack(anchor="w", padx=10)
 
-    def _buscar(self) -> None:
+    def _buscar(self, auto: bool = False) -> None:
+        if getattr(self, "_buscando", False):
+            return
+        self._buscando = True
+        self._busca_auto = auto
         self._btn_buscar.config(state="disabled")
         self._status.config(text="Buscando... aguarde.")
-        self._nb.select(4)  # aba Registro
+        if hasattr(self, "_prazos_status"):
+            self._prazos_status.config(text="Buscando publicações no diário...")
+        if not auto:
+            self._nb.select(4)  # aba Registro (acompanhar o andamento)
         threading.Thread(target=self._buscar_worker, daemon=True).start()
+
+    def _auto_buscar(self) -> None:
+        """Busca automática: alimenta a lista ao iniciar e a cada intervalo."""
+        self._buscar(auto=True)
+        intervalo_ms = max(60, settings.schedule_interval_seconds) * 1000
+        self.after(intervalo_ms, self._auto_buscar)
 
     def _buscar_worker(self) -> None:
         try:
@@ -378,14 +410,20 @@ class App(tk.Tk):
             while True:
                 tipo, dado = self._eventos_fila.get_nowait()
                 if tipo == "buscar_ok":
+                    auto = getattr(self, "_busca_auto", False)
+                    self._buscando = False
                     self._btn_buscar.config(state="normal")
                     self._status.config(text=f"Concluído. Prazos extraídos: {dado}.")
                     self._atualizar_prazos()
-                    self._nb.select(2)  # vai direto para a aba Prazos
+                    if not auto:
+                        self._nb.select(2)  # vai direto para a aba Prazos
                 elif tipo == "buscar_erro":
+                    auto = getattr(self, "_busca_auto", False)
+                    self._buscando = False
                     self._btn_buscar.config(state="normal")
                     self._status.config(text="Erro na busca (veja a aba Registro).")
-                    messagebox.showerror("Erro na busca", str(dado))
+                    if not auto:  # em busca automática, não interrompe com pop-up
+                        messagebox.showerror("Erro na busca", str(dado))
         except queue.Empty:
             pass
 
