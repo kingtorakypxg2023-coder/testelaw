@@ -138,6 +138,53 @@ class ComunicaProvider(CaptureProvider):
         return []
 
     @staticmethod
+    def _extrair_partes(item: dict[str, Any]) -> tuple[str | None, str | None]:
+        """Extrai autor (polo ativo) e réu (polo passivo) da comunicação.
+
+        O DJEN costuma trazer as partes numa lista (`destinatarios`/`partes`),
+        cada uma com `nome` e `polo` ("A"=ativo/autor, "P"=passivo/réu). Os
+        advogados ficam em outra chave, então não são confundidos com as partes.
+        """
+        lista: Any = None
+        for chave in ("destinatarios", "partes", "destinatario", "polos"):
+            if isinstance(item.get(chave), list):
+                lista = item[chave]
+                break
+        autores: list[str] = []
+        reus: list[str] = []
+        for ent in lista or []:
+            if not isinstance(ent, dict):
+                continue
+            nome = str(
+                ent.get("nome")
+                or ent.get("nomeParte")
+                or ent.get("nome_parte")
+                or ent.get("nomePessoa")
+                or ""
+            ).strip()
+            if not nome:
+                continue
+            polo = str(
+                ent.get("polo") or ent.get("poloParte") or ent.get("tipoParte") or ""
+            ).strip().upper()
+            if polo.startswith("P"):
+                reus.append(nome)
+            else:  # "A"/ativo ou sem polo definido -> assume autor
+                autores.append(nome)
+        if not autores:
+            esc = item.get("nomeAutor") or item.get("autor") or item.get("poloAtivo")
+            if esc:
+                autores.append(str(esc).strip())
+        if not reus:
+            esc = item.get("nomeReu") or item.get("reu") or item.get("poloPassivo")
+            if esc:
+                reus.append(str(esc).strip())
+        # dict.fromkeys remove duplicados preservando a ordem.
+        cliente = " / ".join(dict.fromkeys(filter(None, autores))) or None
+        parte_contraria = " / ".join(dict.fromkeys(filter(None, reus))) or None
+        return cliente, parte_contraria
+
+    @staticmethod
     def _map_to_publicacao(item: dict[str, Any], alvo: AlvoMonitoramento) -> Publicacao:
         texto = item.get("texto") or item.get("conteudo") or item.get("corpo") or ""
         data_raw = (
@@ -147,6 +194,7 @@ class ComunicaProvider(CaptureProvider):
             or item.get("data")
         )
         ident = item.get("id") or item.get("hash") or item.get("numeroComunicacao") or ""
+        cliente, parte_contraria = ComunicaProvider._extrair_partes(item)
         return Publicacao(
             id_externo=str(ident),
             fonte=FonteCaptura.COMUNICA,
@@ -156,6 +204,8 @@ class ComunicaProvider(CaptureProvider):
                 or item.get("numeroprocessocommascara")
                 or item.get("numeroProcesso")
             ),
+            cliente=cliente,
+            parte_contraria=parte_contraria,
             diario=item.get("nomeOrgao") or item.get("siglaTribunal"),
             data_publicacao=parse_date(data_raw),
             conteudo=_limpar_html(str(texto)),

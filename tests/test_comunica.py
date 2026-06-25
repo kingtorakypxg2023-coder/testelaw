@@ -44,6 +44,23 @@ def test_limpar_html() -> None:
     assert _limpar_html("<p>Intimação em <b>15</b> dias.</p>") == "Intimação em 15 dias."
 
 
+def test_extrai_partes_dos_destinatarios() -> None:
+    item = {
+        "destinatarios": [
+            {"nome": "João da Silva", "polo": "A"},
+            {"nome": "Banco XYZ S.A.", "polo": "P"},
+            {"nome": "Maria Litisconsorte", "polo": "A"},
+        ]
+    }
+    cliente, reu = ComunicaProvider._extrair_partes(item)
+    assert cliente == "João da Silva / Maria Litisconsorte"  # autores (polo ativo)
+    assert reu == "Banco XYZ S.A."  # réu (polo passivo)
+
+
+def test_extrai_partes_sem_dados() -> None:
+    assert ComunicaProvider._extrair_partes({"texto": "x"}) == (None, None)
+
+
 def test_mapeia_resposta(monkeypatch: pytest.MonkeyPatch) -> None:
     payload = {
         "status": "success",
@@ -56,6 +73,10 @@ def test_mapeia_resposta(monkeypatch: pytest.MonkeyPatch) -> None:
                 "nomeOrgao": "1ª Vara Cível",
                 "data_disponibilizacao": "2026-06-10",
                 "texto": "<p>Fica intimada para contestação em 15 dias.</p>",
+                "destinatarios": [
+                    {"nome": "Fulano de Tal", "polo": "A"},
+                    {"nome": "Empresa Ré Ltda.", "polo": "P"},
+                ],
             }
         ],
     }
@@ -71,6 +92,8 @@ def test_mapeia_resposta(monkeypatch: pytest.MonkeyPatch) -> None:
     assert pub.fonte == FonteCaptura.COMUNICA
     assert pub.termo_monitorado == "OAB 123456/SP"
     assert pub.numero_processo == "1001234-56.2024.8.26.0100"
+    assert pub.cliente == "Fulano de Tal"
+    assert pub.parte_contraria == "Empresa Ré Ltda."
     assert pub.diario == "1ª Vara Cível"
     assert "Fica intimada para contestação em 15 dias." == pub.conteudo  # HTML removido
     assert pub.data_publicacao is not None and pub.data_publicacao.year == 2026

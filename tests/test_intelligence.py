@@ -93,6 +93,36 @@ def test_cliente_propaga_para_analise_e_prazo() -> None:
     assert analise.prazos[0].cliente == "João da Silva"
 
 
+class _SemPartesProvider(IntelligenceProvider):
+    """IA que não identifica as partes (como o provedor mock por heurística)."""
+
+    def _extrair(self, publicacao: Publicacao) -> AnaliseExtraida:
+        return AnaliseExtraida(
+            resumo="r",
+            possui_prazo=True,
+            prazos=[
+                PrazoExtraido(tipo=TipoPrazo.OUTRO, descricao="x", prazo_dias=10)
+            ],
+        )
+
+
+def test_partes_da_captura_usadas_quando_ia_nao_identifica() -> None:
+    # As partes vêm da fonte de captura (DJEN) quando a IA não as identifica.
+    pub = Publicacao(
+        id_externo="p",
+        numero_processo="1",
+        conteudo="texto",
+        data_publicacao=date(2026, 6, 19),
+        cliente="Autor Capturado",
+        parte_contraria="Réu Capturado",
+    )
+    analise = _SemPartesProvider().analisar(pub)
+    assert analise.cliente == "Autor Capturado"
+    assert analise.parte_contraria == "Réu Capturado"
+    assert analise.prazos[0].cliente == "Autor Capturado"
+    assert analise.prazos[0].parte_contraria == "Réu Capturado"
+
+
 def test_factory_retorna_mock() -> None:
     assert isinstance(get_intelligence_provider("mock"), MockIntelligenceProvider)
 

@@ -35,20 +35,24 @@ class IntelligenceProvider(ABC):
     def analisar(self, publicacao: Publicacao) -> AnalisePublicacao:
         """Analisa uma publicação e devolve o resultado com a data fatal calculada."""
         extraida = self._extrair(publicacao)
+        # As partes podem vir da IA (do texto) ou já da fonte de captura (DJEN).
+        # Preferimos o que a IA identificou; senão, usamos o que a captura trouxe.
+        cliente = extraida.cliente or publicacao.cliente
+        parte_contraria = extraida.parte_contraria or publicacao.parte_contraria
         prazos = [
             self._para_prazo(
                 pe,
                 publicacao.data_publicacao,
-                extraida.cliente,
-                extraida.parte_contraria,
+                cliente,
+                parte_contraria,
             )
             for pe in extraida.prazos
         ]
         return AnalisePublicacao(
             id_externo=publicacao.id_externo,
             numero_processo=publicacao.numero_processo,
-            cliente=extraida.cliente,
-            parte_contraria=extraida.parte_contraria,
+            cliente=cliente,
+            parte_contraria=parte_contraria,
             resumo=extraida.resumo,
             possui_prazo=extraida.possui_prazo or bool(prazos),
             prazos=prazos,

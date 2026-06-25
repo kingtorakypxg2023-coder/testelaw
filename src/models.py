@@ -62,6 +62,12 @@ class Publicacao(BaseModel):
         default=None, description="Termo/nome que disparou a captura"
     )
     numero_processo: str | None = Field(default=None, description="Número do processo (CNJ)")
+    cliente: str | None = Field(
+        default=None, description="Autor/polo ativo informado pela fonte de captura"
+    )
+    parte_contraria: str | None = Field(
+        default=None, description="Réu/polo passivo informado pela fonte de captura"
+    )
     diario: str | None = Field(default=None, description="Nome do diário oficial")
     data_publicacao: date | None = Field(default=None)
     conteudo: str = Field(..., description="Texto bruto integral da publicação")

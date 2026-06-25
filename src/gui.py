@@ -264,16 +264,8 @@ class App(tk.Tk):
         # iid da linha -> registro (evita ler valores já convertidos da Treeview,
         # que estraga números de processo e zeros à esquerda).
         self._linhas: dict[str, PrazoManualRegistro] = {}
-        self._linhas_partes: dict[str, str] = {}
 
-        sub = ttk.Notebook(frame)
-        sub.pack(fill="both", expand=True, padx=2, pady=4)
-
-        # ---- sub-aba: lista de prazos ----
-        aba_lista = ttk.Frame(sub)
-        sub.add(aba_lista, text="Prazos")
-
-        barra = ttk.Frame(aba_lista)
+        barra = ttk.Frame(frame)
         barra.pack(fill="x", padx=6, pady=(8, 4))
         ttk.Button(
             barra, text="Buscar publicações agora", command=self._buscar
@@ -288,75 +280,57 @@ class App(tk.Tk):
             side="left", padx=6
         )
 
+        # Tabela com barras de rolagem vertical e horizontal.
+        container = ttk.Frame(frame)
+        container.pack(fill="both", expand=True, padx=6, pady=6)
+
         colunas = (
             "data", "situacao", "origem", "tipo", "urgente",
-            "cliente", "descricao", "processo",
+            "cliente", "parte_contraria", "descricao", "processo",
         )
-        self._tree = ttk.Treeview(aba_lista, columns=colunas, show="headings", height=15)
+        self._tree = ttk.Treeview(
+            container, columns=colunas, show="headings", height=15
+        )
         for col, titulo, largura in [
             ("data", "Data fatal", 85),
             ("situacao", "Situação", 75),
             ("origem", "Origem", 70),
             ("tipo", "Tipo", 95),
             ("urgente", "Urg.", 45),
-            ("cliente", "Cliente", 150),
-            ("descricao", "Descrição", 260),
+            ("cliente", "Cliente (autor)", 150),
+            ("parte_contraria", "Parte contrária (réu)", 170),
+            ("descricao", "Descrição", 240),
             ("processo", "Processo", 160),
         ]:
             self._tree.heading(col, text=titulo)
             self._tree.column(col, width=largura, anchor="w")
-        self._tree.pack(fill="both", expand=True, padx=6, pady=6)
+
+        vsb = ttk.Scrollbar(container, orient="vertical", command=self._tree.yview)
+        hsb = ttk.Scrollbar(container, orient="horizontal", command=self._tree.xview)
+        self._tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+        self._tree.grid(row=0, column=0, sticky="nsew")
+        vsb.grid(row=0, column=1, sticky="ns")
+        hsb.grid(row=1, column=0, sticky="ew")
+        container.rowconfigure(0, weight=1)
+        container.columnconfigure(0, weight=1)
         # copiar também com duplo-clique sobre a linha
         self._tree.bind("<Double-1>", lambda _e: self._copiar_processo())
 
-        self._prazos_status = ttk.Label(aba_lista, text="", foreground="#666")
+        self._prazos_status = ttk.Label(frame, text="", foreground="#666")
         self._prazos_status.pack(anchor="w", padx=8, pady=(0, 6))
-
-        # ---- sub-aba: partes do processo ----
-        aba_partes = ttk.Frame(sub)
-        sub.add(aba_partes, text="Partes")
-
-        barra_p = ttk.Frame(aba_partes)
-        barra_p.pack(fill="x", padx=6, pady=(8, 4))
-        ttk.Button(
-            barra_p, text="Copiar nº do processo", command=self._copiar_processo_partes
-        ).pack(side="left")
-
-        colunas_p = ("processo", "cliente", "parte_contraria")
-        self._partes_tree = ttk.Treeview(
-            aba_partes, columns=colunas_p, show="headings", height=15
-        )
-        for col, titulo, largura in [
-            ("processo", "Processo", 200),
-            ("cliente", "Cliente (autor)", 240),
-            ("parte_contraria", "Parte contrária (réu)", 240),
-        ]:
-            self._partes_tree.heading(col, text=titulo)
-            self._partes_tree.column(col, width=largura, anchor="w")
-        self._partes_tree.pack(fill="both", expand=True, padx=6, pady=6)
-        self._partes_tree.bind("<Double-1>", lambda _e: self._copiar_processo_partes())
-
-        self._partes_status = ttk.Label(aba_partes, text="", foreground="#666")
-        self._partes_status.pack(anchor="w", padx=8, pady=(0, 6))
 
     def _atualizar_prazos(self) -> None:
         if not hasattr(self, "_tree"):
             return
         for item in self._tree.get_children():
             self._tree.delete(item)
-        for item in self._partes_tree.get_children():
-            self._partes_tree.delete(item)
         self._linhas.clear()
-        self._linhas_partes.clear()
         try:
             registros = listar_prazos_manuais()
         except Exception as exc:
             logger.warning("Falha ao listar prazos: %s", exc)
             registros = []
         hoje = date.today()
-        # Agrega as partes por processo: cada processo aparece uma única vez.
-        partes: dict[str, list[str]] = {}
-        ordem_partes: list[str] = []
         for reg in registros:
             situacao = "Pendente" if reg.data_fatal >= hoje else "Vencido"
             origem = "Capturado" if reg.origem == "captura" else "Manual"
@@ -369,30 +343,12 @@ class App(tk.Tk):
                     reg.prazo.tipo.value,
                     "SIM" if reg.prazo.urgente else "",
                     reg.prazo.cliente or "",
+                    reg.prazo.parte_contraria or "",
                     reg.prazo.descricao,
                     reg.prazo.numero_processo or "",
                 ),
             )
             self._linhas[iid] = reg
-
-            processo = (reg.prazo.numero_processo or "").strip()
-            chave = processo or f"(sem nº) {reg.prazo.cliente or reg.prazo.descricao}"
-            if chave not in partes:
-                partes[chave] = [
-                    processo, reg.prazo.cliente or "", reg.prazo.parte_contraria or ""
-                ]
-                ordem_partes.append(chave)
-            else:  # completa os campos que ainda estiverem vazios
-                atual = partes[chave]
-                atual[1] = atual[1] or (reg.prazo.cliente or "")
-                atual[2] = atual[2] or (reg.prazo.parte_contraria or "")
-
-        for chave in ordem_partes:
-            processo, cliente, parte_contraria = partes[chave]
-            iid = self._partes_tree.insert(
-                "", "end", values=(processo, cliente, parte_contraria)
-            )
-            self._linhas_partes[iid] = processo
 
         if hasattr(self, "_prazos_status"):
             if not registros:
@@ -405,15 +361,6 @@ class App(tk.Tk):
                 self._prazos_status.config(
                     text=f"{len(registros)} prazo(s) na lista — {pendentes} pendente(s)."
                 )
-        if hasattr(self, "_partes_status"):
-            self._partes_status.config(
-                text=(
-                    f"{len(ordem_partes)} processo(s)/parte(s)."
-                    if ordem_partes
-                    else "As partes aparecem aqui conforme os prazos forem "
-                    "cadastrados ou capturados."
-                )
-            )
 
     def _remover_prazo(self) -> None:
         selecao = self._tree.selection()
@@ -439,11 +386,8 @@ class App(tk.Tk):
         self.clipboard_clear()
         self.clipboard_append(texto)
         self.update()  # garante que o conteúdo permaneça na área de transferência
-        msg = f"Número do processo copiado: {texto}"
-        for atributo in ("_prazos_status", "_partes_status"):
-            rotulo = getattr(self, atributo, None)
-            if rotulo is not None:
-                rotulo.config(text=msg)
+        if hasattr(self, "_prazos_status"):
+            self._prazos_status.config(text=f"Número do processo copiado: {texto}")
 
     def _copiar_processo(self) -> None:
         """Copia o nº do processo da linha selecionada (lê do registro, não da tabela)."""
@@ -455,18 +399,6 @@ class App(tk.Tk):
         processo = (reg.prazo.numero_processo or "").strip() if reg else ""
         if not processo:
             messagebox.showinfo("Copiar", "Este prazo não tem número de processo.")
-            return
-        self._copiar_texto(processo)
-
-    def _copiar_processo_partes(self) -> None:
-        """Copia o nº do processo da linha selecionada na sub-aba Partes."""
-        selecao = self._partes_tree.selection()
-        if not selecao:
-            messagebox.showinfo("Copiar", "Selecione uma linha na lista de partes.")
-            return
-        processo = (self._linhas_partes.get(selecao[0]) or "").strip()
-        if not processo:
-            messagebox.showinfo("Copiar", "Esta linha não tem número de processo.")
             return
         self._copiar_texto(processo)
 

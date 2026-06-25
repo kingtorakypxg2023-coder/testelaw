@@ -20,6 +20,8 @@ _TEMPLATES: list[dict[str, object]] = [
         "numero_processo": "1001234-56.2024.8.26.0100",
         "diario": "DJe TJSP",
         "dias_atras": 1,
+        "cliente": "João da Silva",
+        "parte_contraria": "Banco XYZ S.A.",
         "conteudo": (
             "INTIMAÇÃO - Processo nº 1001234-56.2024.8.26.0100. Fica a parte "
             "requerida, na pessoa de seu advogado, INTIMADA para, no prazo de "
@@ -31,6 +33,8 @@ _TEMPLATES: list[dict[str, object]] = [
         "numero_processo": "5005678-90.2023.4.03.6100",
         "diario": "DJe TRF3",
         "dias_atras": 2,
+        "cliente": "Maria Oliveira",
+        "parte_contraria": "Instituto Nacional do Seguro Social - INSS",
         "conteudo": (
             "DESPACHO - Processo nº 5005678-90.2023.4.03.6100. Designo audiência "
             "de conciliação para o dia 15/07/2026, às 14h00, a ser realizada por "
@@ -41,6 +45,8 @@ _TEMPLATES: list[dict[str, object]] = [
         "numero_processo": "0009876-54.2022.8.26.0224",
         "diario": "DJe TJSP",
         "dias_atras": 3,
+        "cliente": "Construtora Alfa Ltda.",
+        "parte_contraria": "Município de São Paulo",
         "conteudo": (
             "SENTENÇA - Processo nº 0009876-54.2022.8.26.0224. Ante o exposto, "
             "JULGO PROCEDENTE o pedido. Publique-se. Registre-se. Intimem-se. "
@@ -71,6 +77,8 @@ class MockCaptureProvider(CaptureProvider):
                     fonte=FonteCaptura.OUTRA,
                     termo_monitorado=alvo.rotulo,
                     numero_processo=str(tpl["numero_processo"]),
+                    cliente=str(tpl["cliente"]),
+                    parte_contraria=str(tpl["parte_contraria"]),
                     diario=str(tpl["diario"]),
                     data_publicacao=hoje - timedelta(days=int(tpl["dias_atras"])),
                     conteudo=str(tpl["conteudo"]),
