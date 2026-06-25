@@ -67,12 +67,13 @@ def test_mock_sem_prazo() -> None:
 
 
 class _ClienteStubProvider(IntelligenceProvider):
-    """Provedor de teste que devolve uma extração com cliente preenchido."""
+    """Provedor de teste que devolve uma extração com cliente/partes preenchidos."""
 
     def _extrair(self, publicacao: Publicacao) -> AnaliseExtraida:
         return AnaliseExtraida(
             resumo="intimação",
             cliente="João da Silva",
+            parte_contraria="Banco XYZ S.A.",
             possui_prazo=True,
             prazos=[
                 PrazoExtraido(
@@ -85,8 +86,10 @@ class _ClienteStubProvider(IntelligenceProvider):
 def test_cliente_propaga_para_analise_e_prazo() -> None:
     analise = _ClienteStubProvider().analisar(_publicacao("texto qualquer"))
 
-    # O cliente extraído deve aparecer tanto na análise quanto em cada prazo.
+    # Cliente e parte contrária devem aparecer na análise e em cada prazo.
     assert analise.cliente == "João da Silva"
+    assert analise.parte_contraria == "Banco XYZ S.A."
+    assert analise.prazos[0].parte_contraria == "Banco XYZ S.A."
     assert analise.prazos[0].cliente == "João da Silva"
 
 

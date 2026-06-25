@@ -87,6 +87,9 @@ class Prazo(BaseModel):
     cliente: str | None = Field(
         default=None, description="Autor do processo / parte representada (cliente)"
     )
+    parte_contraria: str | None = Field(
+        default=None, description="Parte contrária / réu (polo passivo)"
+    )
     prazo_dias: int | None = Field(
         default=None, description="Quantidade de dias do prazo, se informado na publicação"
     )
@@ -124,6 +127,9 @@ class AnaliseExtraida(BaseModel):
     cliente: str | None = Field(
         default=None, description="Nome do autor do processo / parte representada (cliente)"
     )
+    parte_contraria: str | None = Field(
+        default=None, description="Nome da parte contrária / réu (polo passivo)"
+    )
     possui_prazo: bool = Field(default=False)
     prazos: list[PrazoExtraido] = Field(default_factory=list)
 
@@ -134,6 +140,9 @@ class AnalisePublicacao(BaseModel):
     id_externo: str = Field(..., description="Referência à publicação de origem")
     numero_processo: str | None = Field(default=None)
     cliente: str | None = Field(default=None, description="Autor do processo / cliente")
+    parte_contraria: str | None = Field(
+        default=None, description="Parte contrária / réu (polo passivo)"
+    )
     resumo: str = Field(..., description="Resumo objetivo do teor da publicação")
     possui_prazo: bool = Field(default=False)
     prazos: list[Prazo] = Field(default_factory=list)
@@ -163,6 +172,9 @@ class PrazoManual(BaseModel):
     tipo: TipoPrazo = Field(default=TipoPrazo.OUTRO)
     descricao: str = Field(..., description="Descrição da ação/prazo")
     cliente: str | None = Field(default=None, description="Autor do processo / cliente")
+    parte_contraria: str | None = Field(
+        default=None, description="Parte contrária / réu (polo passivo)"
+    )
     numero_processo: str | None = Field(default=None)
     data_fatal: date | None = Field(default=None, description="Data limite, se já conhecida")
     prazo_dias: int | None = Field(

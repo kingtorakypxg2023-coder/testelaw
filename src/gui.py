@@ -17,7 +17,7 @@ from tkinter.scrolledtext import ScrolledText
 from pydantic import ValidationError
 
 from src.config.settings import BASE_DIR, settings
-from src.models import PrazoManual, TipoPrazo
+from src.models import PrazoManual, PrazoManualRegistro, TipoPrazo
 from src.services.manual import (
     adicionar_prazo_manual,
     listar_prazos_manuais,
@@ -45,10 +45,6 @@ class _QueueLogHandler(logging.Handler):
 
 
 class App(tk.Tk):
-    # índices das colunas da Treeview de prazos (ver _aba_prazos)
-    _COL_PROCESSO = 7
-    _COL_ID = 8
-
     def __init__(self) -> None:
         super().__init__()
         self.title("Monitor de Diários & Prazos Jurídicos")
@@ -159,56 +155,64 @@ class App(tk.Tk):
             row=1, column=1, columnspan=2, sticky="w", padx=8, pady=6
         )
 
-        ttk.Label(frame, text="Tipo").grid(row=2, column=0, sticky="w", padx=8, pady=6)
+        ttk.Label(frame, text="Parte contrária (réu)").grid(
+            row=2, column=0, sticky="w", padx=8, pady=6
+        )
+        self._np["parte_contraria"] = tk.StringVar()
+        ttk.Entry(frame, textvariable=self._np["parte_contraria"], width=52).grid(
+            row=2, column=1, columnspan=2, sticky="w", padx=8, pady=6
+        )
+
+        ttk.Label(frame, text="Tipo").grid(row=3, column=0, sticky="w", padx=8, pady=6)
         self._np["tipo"] = tk.StringVar(value="outro")
         ttk.Combobox(
             frame, textvariable=self._np["tipo"], values=[t.value for t in TipoPrazo],
             width=22, state="readonly",
-        ).grid(row=2, column=1, sticky="w", padx=8, pady=6)
+        ).grid(row=3, column=1, sticky="w", padx=8, pady=6)
 
-        ttk.Label(frame, text="Processo (opcional)").grid(row=3, column=0, sticky="w", padx=8, pady=6)
+        ttk.Label(frame, text="Processo (opcional)").grid(row=4, column=0, sticky="w", padx=8, pady=6)
         self._np["processo"] = tk.StringVar()
         ttk.Entry(frame, textvariable=self._np["processo"], width=42).grid(
-            row=3, column=1, sticky="w", padx=8, pady=6
+            row=4, column=1, sticky="w", padx=8, pady=6
         )
 
         self._np["modo"] = tk.StringVar(value="dias")
         ttk.Radiobutton(
             frame, text="Por prazo em dias", variable=self._np["modo"], value="dias"
-        ).grid(row=4, column=0, sticky="w", padx=8, pady=6)
+        ).grid(row=5, column=0, sticky="w", padx=8, pady=6)
         self._np["prazo_dias"] = tk.StringVar(value="15")
         ttk.Entry(frame, textvariable=self._np["prazo_dias"], width=8).grid(
-            row=4, column=1, sticky="w", padx=8, pady=6
+            row=5, column=1, sticky="w", padx=8, pady=6
         )
 
         ttk.Radiobutton(
             frame, text="Por data fatal (AAAA-MM-DD ou DD/MM/AAAA)",
             variable=self._np["modo"], value="data",
-        ).grid(row=5, column=0, sticky="w", padx=8, pady=6)
+        ).grid(row=6, column=0, sticky="w", padx=8, pady=6)
         self._np["data_fatal"] = tk.StringVar()
         ttk.Entry(frame, textvariable=self._np["data_fatal"], width=16).grid(
-            row=5, column=1, sticky="w", padx=8, pady=6
+            row=6, column=1, sticky="w", padx=8, pady=6
         )
 
         self._np["dias_corridos"] = tk.BooleanVar(value=False)
         ttk.Checkbutton(
             frame, text="Contar em dias corridos (padrão: dias úteis - CPC)",
             variable=self._np["dias_corridos"],
-        ).grid(row=6, column=0, columnspan=2, sticky="w", padx=8, pady=6)
+        ).grid(row=7, column=0, columnspan=2, sticky="w", padx=8, pady=6)
 
         self._np["urgente"] = tk.BooleanVar(value=False)
         ttk.Checkbutton(frame, text="Urgente", variable=self._np["urgente"]).grid(
-            row=7, column=0, sticky="w", padx=8, pady=6
+            row=8, column=0, sticky="w", padx=8, pady=6
         )
 
-        ttk.Label(frame, text="Observações").grid(row=8, column=0, sticky="w", padx=8, pady=6)
+        ttk.Label(frame, text="Observações").grid(row=9, column=0, sticky="w", padx=8, pady=6)
         self._np["obs"] = tk.StringVar()
         ttk.Entry(frame, textvariable=self._np["obs"], width=52).grid(
-            row=8, column=1, columnspan=2, sticky="w", padx=8, pady=6
+            row=9, column=1, columnspan=2, sticky="w", padx=8, pady=6
         )
 
         ttk.Button(frame, text="Adicionar prazo", command=self._adicionar_prazo).grid(
-            row=9, column=1, sticky="w", padx=8, pady=14
+            row=10, column=1, sticky="w", padx=8, pady=14
         )
 
     def _adicionar_prazo(self) -> None:
@@ -223,6 +227,7 @@ class App(tk.Tk):
                 tipo=TipoPrazo(dados["tipo"].get()),
                 descricao=str(dados["descricao"].get()).strip(),
                 cliente=str(dados["cliente"].get()).strip() or None,
+                parte_contraria=str(dados["parte_contraria"].get()).strip() or None,
                 numero_processo=str(dados["processo"].get()).strip() or None,
                 data_fatal=data_fatal,
                 prazo_dias=prazo_dias,
@@ -246,6 +251,7 @@ class App(tk.Tk):
         )
         dados["descricao"].set("")
         dados["cliente"].set("")
+        dados["parte_contraria"].set("")
         dados["processo"].set("")
         dados["obs"].set("")
         self._atualizar_prazos()
@@ -255,7 +261,19 @@ class App(tk.Tk):
         frame = ttk.Frame(self._nb)
         self._nb.add(frame, text="Prazos")
 
-        barra = ttk.Frame(frame)
+        # iid da linha -> registro (evita ler valores já convertidos da Treeview,
+        # que estraga números de processo e zeros à esquerda).
+        self._linhas: dict[str, PrazoManualRegistro] = {}
+        self._linhas_partes: dict[str, str] = {}
+
+        sub = ttk.Notebook(frame)
+        sub.pack(fill="both", expand=True, padx=2, pady=4)
+
+        # ---- sub-aba: lista de prazos ----
+        aba_lista = ttk.Frame(sub)
+        sub.add(aba_lista, text="Prazos")
+
+        barra = ttk.Frame(aba_lista)
         barra.pack(fill="x", padx=6, pady=(8, 4))
         ttk.Button(
             barra, text="Buscar publicações agora", command=self._buscar
@@ -272,19 +290,18 @@ class App(tk.Tk):
 
         colunas = (
             "data", "situacao", "origem", "tipo", "urgente",
-            "cliente", "descricao", "processo", "id",
+            "cliente", "descricao", "processo",
         )
-        self._tree = ttk.Treeview(frame, columns=colunas, show="headings", height=15)
+        self._tree = ttk.Treeview(aba_lista, columns=colunas, show="headings", height=15)
         for col, titulo, largura in [
             ("data", "Data fatal", 85),
             ("situacao", "Situação", 75),
             ("origem", "Origem", 70),
             ("tipo", "Tipo", 95),
             ("urgente", "Urg.", 45),
-            ("cliente", "Cliente", 160),
-            ("descricao", "Descrição", 280),
-            ("processo", "Processo", 150),
-            ("id", "ID", 90),
+            ("cliente", "Cliente", 150),
+            ("descricao", "Descrição", 260),
+            ("processo", "Processo", 160),
         ]:
             self._tree.heading(col, text=titulo)
             self._tree.column(col, width=largura, anchor="w")
@@ -292,24 +309,58 @@ class App(tk.Tk):
         # copiar também com duplo-clique sobre a linha
         self._tree.bind("<Double-1>", lambda _e: self._copiar_processo())
 
-        self._prazos_status = ttk.Label(frame, text="", foreground="#666")
+        self._prazos_status = ttk.Label(aba_lista, text="", foreground="#666")
         self._prazos_status.pack(anchor="w", padx=8, pady=(0, 6))
+
+        # ---- sub-aba: partes do processo ----
+        aba_partes = ttk.Frame(sub)
+        sub.add(aba_partes, text="Partes")
+
+        barra_p = ttk.Frame(aba_partes)
+        barra_p.pack(fill="x", padx=6, pady=(8, 4))
+        ttk.Button(
+            barra_p, text="Copiar nº do processo", command=self._copiar_processo_partes
+        ).pack(side="left")
+
+        colunas_p = ("processo", "cliente", "parte_contraria")
+        self._partes_tree = ttk.Treeview(
+            aba_partes, columns=colunas_p, show="headings", height=15
+        )
+        for col, titulo, largura in [
+            ("processo", "Processo", 200),
+            ("cliente", "Cliente (autor)", 240),
+            ("parte_contraria", "Parte contrária (réu)", 240),
+        ]:
+            self._partes_tree.heading(col, text=titulo)
+            self._partes_tree.column(col, width=largura, anchor="w")
+        self._partes_tree.pack(fill="both", expand=True, padx=6, pady=6)
+        self._partes_tree.bind("<Double-1>", lambda _e: self._copiar_processo_partes())
+
+        self._partes_status = ttk.Label(aba_partes, text="", foreground="#666")
+        self._partes_status.pack(anchor="w", padx=8, pady=(0, 6))
 
     def _atualizar_prazos(self) -> None:
         if not hasattr(self, "_tree"):
             return
         for item in self._tree.get_children():
             self._tree.delete(item)
+        for item in self._partes_tree.get_children():
+            self._partes_tree.delete(item)
+        self._linhas.clear()
+        self._linhas_partes.clear()
         try:
             registros = listar_prazos_manuais()
         except Exception as exc:
             logger.warning("Falha ao listar prazos: %s", exc)
             registros = []
         hoje = date.today()
+        # Agrega as partes por processo: cada processo aparece uma única vez.
+        partes: dict[str, list[str]] = {}
+        ordem_partes: list[str] = []
         for reg in registros:
             situacao = "Pendente" if reg.data_fatal >= hoje else "Vencido"
             origem = "Capturado" if reg.origem == "captura" else "Manual"
-            self._tree.insert(
+            iid = self._tree.insert(
                 "", "end",
                 values=(
                     reg.data_fatal.strftime("%d/%m/%Y"),
@@ -320,9 +371,29 @@ class App(tk.Tk):
                     reg.prazo.cliente or "",
                     reg.prazo.descricao,
                     reg.prazo.numero_processo or "",
-                    reg.id,
                 ),
             )
+            self._linhas[iid] = reg
+
+            processo = (reg.prazo.numero_processo or "").strip()
+            chave = processo or f"(sem nº) {reg.prazo.cliente or reg.prazo.descricao}"
+            if chave not in partes:
+                partes[chave] = [
+                    processo, reg.prazo.cliente or "", reg.prazo.parte_contraria or ""
+                ]
+                ordem_partes.append(chave)
+            else:  # completa os campos que ainda estiverem vazios
+                atual = partes[chave]
+                atual[1] = atual[1] or (reg.prazo.cliente or "")
+                atual[2] = atual[2] or (reg.prazo.parte_contraria or "")
+
+        for chave in ordem_partes:
+            processo, cliente, parte_contraria = partes[chave]
+            iid = self._partes_tree.insert(
+                "", "end", values=(processo, cliente, parte_contraria)
+            )
+            self._linhas_partes[iid] = processo
+
         if hasattr(self, "_prazos_status"):
             if not registros:
                 self._prazos_status.config(
@@ -334,45 +405,70 @@ class App(tk.Tk):
                 self._prazos_status.config(
                     text=f"{len(registros)} prazo(s) na lista — {pendentes} pendente(s)."
                 )
+        if hasattr(self, "_partes_status"):
+            self._partes_status.config(
+                text=(
+                    f"{len(ordem_partes)} processo(s)/parte(s)."
+                    if ordem_partes
+                    else "As partes aparecem aqui conforme os prazos forem "
+                    "cadastrados ou capturados."
+                )
+            )
 
     def _remover_prazo(self) -> None:
         selecao = self._tree.selection()
         if not selecao:
             messagebox.showinfo("Remover", "Selecione um prazo na lista.")
             return
-        valores = self._tree.item(selecao[0]).get("values") or []
-        if len(valores) <= self._COL_ID:
+        reg = self._linhas.get(selecao[0])
+        if reg is None:
             return
-        id_ = str(valores[self._COL_ID])
         if not messagebox.askyesno("Remover", "Remover o prazo selecionado?"):
             return
         try:
-            ok = remover_prazo_manual(id_)
+            ok = remover_prazo_manual(reg.id)
         except Exception as exc:
             messagebox.showerror("Erro", str(exc))
             return
         if ok:
-            logger.info("Prazo removido: %s", id_)
+            logger.info("Prazo removido: %s", reg.id)
         self._atualizar_prazos()
 
+    def _copiar_texto(self, texto: str) -> None:
+        """Copia um texto para a área de transferência e confirma na barra de status."""
+        self.clipboard_clear()
+        self.clipboard_append(texto)
+        self.update()  # garante que o conteúdo permaneça na área de transferência
+        msg = f"Número do processo copiado: {texto}"
+        for atributo in ("_prazos_status", "_partes_status"):
+            rotulo = getattr(self, atributo, None)
+            if rotulo is not None:
+                rotulo.config(text=msg)
+
     def _copiar_processo(self) -> None:
-        """Copia o número do processo da linha selecionada para a área de transferência."""
+        """Copia o nº do processo da linha selecionada (lê do registro, não da tabela)."""
         selecao = self._tree.selection()
         if not selecao:
             messagebox.showinfo("Copiar", "Selecione um prazo na lista.")
             return
-        valores = self._tree.item(selecao[0]).get("values") or []
-        if len(valores) <= self._COL_PROCESSO:
-            return
-        processo = str(valores[self._COL_PROCESSO]).strip()
+        reg = self._linhas.get(selecao[0])
+        processo = (reg.prazo.numero_processo or "").strip() if reg else ""
         if not processo:
             messagebox.showinfo("Copiar", "Este prazo não tem número de processo.")
             return
-        self.clipboard_clear()
-        self.clipboard_append(processo)
-        self.update()  # garante que o conteúdo permaneça na área de transferência
-        if hasattr(self, "_prazos_status"):
-            self._prazos_status.config(text=f"Número do processo copiado: {processo}")
+        self._copiar_texto(processo)
+
+    def _copiar_processo_partes(self) -> None:
+        """Copia o nº do processo da linha selecionada na sub-aba Partes."""
+        selecao = self._partes_tree.selection()
+        if not selecao:
+            messagebox.showinfo("Copiar", "Selecione uma linha na lista de partes.")
+            return
+        processo = (self._linhas_partes.get(selecao[0]) or "").strip()
+        if not processo:
+            messagebox.showinfo("Copiar", "Esta linha não tem número de processo.")
+            return
+        self._copiar_texto(processo)
 
     # ----------------------------------------------------- Monitoramento
     def _aba_monitoramento(self) -> None:

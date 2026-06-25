@@ -13,6 +13,7 @@ def _analise() -> AnalisePublicacao:
         id_externo="pub-9",
         numero_processo="1001234-56.2024.8.26.0100",
         cliente="Maria Souza",
+        parte_contraria="Banco XYZ S.A.",
         resumo="resumo",
         possui_prazo=True,
         prazos=[
@@ -20,6 +21,7 @@ def _analise() -> AnalisePublicacao:
                 tipo=TipoPrazo.RECURSO,
                 descricao="Interpor apelação",
                 cliente="Maria Souza",
+                parte_contraria="Banco XYZ S.A.",
                 prazo_dias=15,
                 data_fatal=date(2026, 7, 10),
                 urgente=True,
@@ -41,6 +43,7 @@ def test_salvar_prazos_capturados_idempotente() -> None:
     assert lista[0].origem == "captura"
     assert lista[0].prazo.descricao == "Interpor apelação"
     assert lista[0].prazo.cliente == "Maria Souza"  # cliente preservado na captura
+    assert lista[0].prazo.parte_contraria == "Banco XYZ S.A."  # réu preservado
     assert lista[0].data_fatal == date(2026, 7, 10)
 
 

@@ -23,6 +23,9 @@ pagamento, cumprimento, outro.
 - Escreva um `resumo` objetivo do teor da publicação, em português.
 - Identifique o `cliente` (nome do autor do processo / parte representada). Se \
 não for possível identificar com clareza, deixe nulo.
+- Identifique a `parte_contraria` (nome do réu / polo passivo, a parte adversa). \
+Se houver mais de uma, separe os nomes por " / ". Se não for possível \
+identificar, deixe nulo.
 - Se não houver prazo nem ação a cumprir, retorne `possui_prazo=false` e \
 `prazos=[]`.
 """
