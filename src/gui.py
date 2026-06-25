@@ -10,7 +10,7 @@ import logging
 import queue
 import threading
 import tkinter as tk
-from datetime import date
+from datetime import date, datetime
 from tkinter import messagebox, ttk
 from tkinter.scrolledtext import ScrolledText
 
@@ -54,6 +54,10 @@ class App(tk.Tk):
         self._log_fila: "queue.Queue[str]" = queue.Queue()
         self._eventos_fila: "queue.Queue[tuple[str, object]]" = queue.Queue()
 
+        # Controle da busca automática (alimenta a aba Prazos sem clique manual).
+        self._busca_em_andamento = False
+        self._auto_after_id: str | None = None
+
         logging.getLogger().addHandler(_QueueLogHandler(self._log_fila))
 
         nb = ttk.Notebook(self)
@@ -67,6 +71,8 @@ class App(tk.Tk):
 
         self._atualizar_prazos()
         self.after(150, self._drenar_filas)
+        # Primeira busca automática logo após a janela renderizar (ver _busca_inicial).
+        self.after(1500, self._busca_inicial)
         logger.info("Interface iniciada. Captura=%s | OAB=%s", settings.capture_provider, settings.monitor_oab or "(nenhuma)")
 
     # ------------------------------------------------------------- Config
@@ -325,33 +331,96 @@ class App(tk.Tk):
         ttk.Label(
             frame,
             text="Busca publicações no diário oficial e extrai os prazos.\n"
+            "Os prazos encontrados alimentam a aba 'Prazos' automaticamente.\n"
             "O andamento e o resultado aparecem na aba 'Registro'.",
             foreground="#666",
             justify="left",
         ).pack(anchor="w", padx=10)
+
+        minutos = max(1, settings.schedule_interval_seconds // 60)
+        self._auto_var = tk.BooleanVar(value=True)
+        ttk.Checkbutton(
+            frame,
+            text=f"Atualização automática (ao abrir e a cada {minutos} min)",
+            variable=self._auto_var,
+            command=self._alternar_auto,
+        ).pack(anchor="w", padx=10, pady=(12, 4))
+
         self._btn_buscar = ttk.Button(
             frame, text="Buscar publicações agora", command=self._buscar
         )
-        self._btn_buscar.pack(anchor="w", padx=10, pady=14)
+        self._btn_buscar.pack(anchor="w", padx=10, pady=10)
         self._status = ttk.Label(frame, text="")
         self._status.pack(anchor="w", padx=10)
 
     def _buscar(self) -> None:
-        self._btn_buscar.config(state="disabled")
-        self._status.config(text="Buscando... aguarde.")
-        self._nb.select(4)  # aba Registro
-        threading.Thread(target=self._buscar_worker, daemon=True).start()
+        """Clique manual em 'Buscar publicações agora'."""
+        self._iniciar_busca(auto=False)
 
-    def _buscar_worker(self) -> None:
+    def _iniciar_busca(self, *, auto: bool) -> None:
+        """Dispara o pipeline em background, evitando execuções sobrepostas."""
+        if self._busca_em_andamento:
+            if not auto:
+                self._status.config(text="Já existe uma busca em andamento...")
+            return
+        self._busca_em_andamento = True
+        self._btn_buscar.config(state="disabled")
+        if auto:
+            self._status.config(text="Atualização automática: buscando...")
+        else:
+            self._status.config(text="Buscando... aguarde.")
+            self._nb.select(4)  # aba Registro
+        threading.Thread(target=self._buscar_worker, args=(auto,), daemon=True).start()
+
+    def _buscar_worker(self, auto: bool) -> None:
         try:
             from src.main import run
 
             analises = run()
             total = sum(len(a.prazos) for a in analises)
-            self._eventos_fila.put(("buscar_ok", total))
+            self._eventos_fila.put(("buscar_ok", (total, auto)))
         except Exception as exc:  # noqa: BLE001
             logger.exception("Falha ao buscar publicações")
-            self._eventos_fila.put(("buscar_erro", str(exc)))
+            self._eventos_fila.put(("buscar_erro", (str(exc), auto)))
+
+    # --------------------------------------------------- Busca automática
+    def _busca_inicial(self) -> None:
+        """Primeira busca ao abrir o programa e início do ciclo periódico."""
+        if self._auto_var.get():
+            self._iniciar_busca(auto=True)
+        self._agendar_auto_busca()
+
+    def _tick_auto_busca(self) -> None:
+        """Disparo periódico: busca (se ligada) e reagenda o próximo ciclo."""
+        self._auto_after_id = None
+        if self._auto_var.get():
+            self._iniciar_busca(auto=True)
+        self._agendar_auto_busca()
+
+    def _agendar_auto_busca(self) -> None:
+        """(Re)agenda a próxima busca automática conforme o intervalo configurado."""
+        if self._auto_after_id is not None:
+            try:
+                self.after_cancel(self._auto_after_id)
+            except Exception:  # noqa: BLE001
+                pass
+            self._auto_after_id = None
+        if not self._auto_var.get():
+            return
+        intervalo_ms = max(60, settings.schedule_interval_seconds) * 1000
+        self._auto_after_id = self.after(intervalo_ms, self._tick_auto_busca)
+
+    def _alternar_auto(self) -> None:
+        """Liga/desliga a busca automática pela interface."""
+        if self._auto_var.get():
+            logger.info(
+                "Atualização automática ligada (a cada %ds).",
+                settings.schedule_interval_seconds,
+            )
+            self._iniciar_busca(auto=True)
+        else:
+            logger.info("Atualização automática desligada.")
+        self._agendar_auto_busca()
 
     # ---------------------------------------------------------- Registro
     def _aba_log(self) -> None:
@@ -378,14 +447,30 @@ class App(tk.Tk):
             while True:
                 tipo, dado = self._eventos_fila.get_nowait()
                 if tipo == "buscar_ok":
+                    total, auto = dado
+                    self._busca_em_andamento = False
                     self._btn_buscar.config(state="normal")
-                    self._status.config(text=f"Concluído. Prazos extraídos: {dado}.")
-                    self._atualizar_prazos()
-                    self._nb.select(2)  # vai direto para a aba Prazos
+                    self._atualizar_prazos()  # alimenta a aba Prazos
+                    if auto:
+                        hora = datetime.now().strftime("%H:%M")
+                        self._status.config(
+                            text=f"Atualizado automaticamente às {hora}. "
+                            f"Prazos extraídos: {total}."
+                        )
+                    else:
+                        self._status.config(text=f"Concluído. Prazos extraídos: {total}.")
+                        self._nb.select(2)  # vai direto para a aba Prazos
                 elif tipo == "buscar_erro":
+                    msg, auto = dado
+                    self._busca_em_andamento = False
                     self._btn_buscar.config(state="normal")
-                    self._status.config(text="Erro na busca (veja a aba Registro).")
-                    messagebox.showerror("Erro na busca", str(dado))
+                    if auto:
+                        self._status.config(
+                            text="Falha na atualização automática (veja a aba Registro)."
+                        )
+                    else:
+                        self._status.config(text="Erro na busca (veja a aba Registro).")
+                        messagebox.showerror("Erro na busca", str(msg))
         except queue.Empty:
             pass
 

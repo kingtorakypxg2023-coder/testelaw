@@ -231,10 +231,15 @@ docker run --env-file .env -v "$PWD/data:/app/data" monitor-diarios
 Além da linha de comando, há uma **interface gráfica com abas** (sem terminal):
 
 - **Configurações** — define OAB, provedores (captura/IA/agenda/notificação) e grava o `.env`.
-- **Novo Prazo** — formulário para inserir prazos manualmente.
-- **Prazos** — lista os prazos cadastrados (atualizar / remover).
-- **Monitoramento** — botão "Buscar publicações agora" (roda o pipeline).
+- **Novo Prazo** — formulário para inserir prazos manualmente (esporádicos).
+- **Prazos** — lista unificada dos prazos **capturados + manuais**, ordenados por data fatal (atualizar / remover).
+- **Monitoramento** — **atualização automática** (ao abrir e a cada intervalo, com liga/desliga) que roda o pipeline e alimenta a aba "Prazos" sozinha; também há o botão "Buscar publicações agora" para uma busca sob demanda.
 - **Registro** — log do que está acontecendo.
+
+A **busca automática** consulta o diário oficial assim que o programa abre e
+repete no intervalo de `SCHEDULE_INTERVAL_SECONDS` (padrão 1h), gravando os
+prazos extraídos na lista da aba "Prazos" sem duplicar. Os prazos **manuais**
+ficam por sua conta, inseridos esporadicamente pela aba "Novo Prazo".
 
 Abrir: execute o **`monitor-diarios-gui`** (duplo-clique no Windows); ou, via
 código, `python -m src.gui` (ou `monitor-diarios gui`). O executável de janela é
