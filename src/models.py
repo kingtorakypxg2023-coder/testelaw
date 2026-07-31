@@ -68,6 +68,9 @@ class Publicacao(BaseModel):
     parte_contraria: str | None = Field(
         default=None, description="Réu/polo passivo informado pela fonte de captura"
     )
+    advogados: str | None = Field(
+        default=None, description="Advogados/procuradores citados na comunicação"
+    )
     diario: str | None = Field(default=None, description="Nome do diário oficial")
     data_publicacao: date | None = Field(default=None)
     conteudo: str = Field(..., description="Texto bruto integral da publicação")

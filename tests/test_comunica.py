@@ -61,6 +61,23 @@ def test_extrai_partes_sem_dados() -> None:
     assert ComunicaProvider._extrair_partes({"texto": "x"}) == (None, None)
 
 
+def test_extrai_advogados() -> None:
+    item = {
+        "destinatarioadvogados": [
+            {"advogado": {"nome": "Ana Advogada", "numero_oab": "80036", "uf_oab": "RJ"}},
+            {"advogado": {"nome": "Bruno Procurador"}},
+        ]
+    }
+    assert (
+        ComunicaProvider._extrair_advogados(item)
+        == "Ana Advogada (OAB 80036/RJ) / Bruno Procurador"
+    )
+
+
+def test_extrai_advogados_sem_dados() -> None:
+    assert ComunicaProvider._extrair_advogados({"texto": "x"}) is None
+
+
 def test_mapeia_resposta(monkeypatch: pytest.MonkeyPatch) -> None:
     payload = {
         "status": "success",
@@ -76,6 +93,9 @@ def test_mapeia_resposta(monkeypatch: pytest.MonkeyPatch) -> None:
                 "destinatarios": [
                     {"nome": "Fulano de Tal", "polo": "A"},
                     {"nome": "Empresa Ré Ltda.", "polo": "P"},
+                ],
+                "destinatarioadvogados": [
+                    {"advogado": {"nome": "Ana Advogada", "numero_oab": "80036", "uf_oab": "RJ"}},
                 ],
             }
         ],
@@ -94,6 +114,7 @@ def test_mapeia_resposta(monkeypatch: pytest.MonkeyPatch) -> None:
     assert pub.numero_processo == "1001234-56.2024.8.26.0100"
     assert pub.cliente == "Fulano de Tal"
     assert pub.parte_contraria == "Empresa Ré Ltda."
+    assert pub.advogados == "Ana Advogada (OAB 80036/RJ)"
     assert pub.diario == "1ª Vara Cível"
     assert "Fica intimada para contestação em 15 dias." == pub.conteudo  # HTML removido
     assert pub.data_publicacao is not None and pub.data_publicacao.year == 2026

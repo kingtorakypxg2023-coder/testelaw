@@ -25,6 +25,7 @@ from src.services.manual import (
 )
 from src.utils.dates import parse_date
 from src.utils.logger import LOG_FORMAT, get_logger
+from src.utils.processos import normalizar_numero_processo
 
 logger = get_logger("gui")
 
@@ -62,12 +63,13 @@ class App(tk.Tk):
         self._aba_config()
         self._aba_novo_prazo()
         self._aba_prazos()
+        self._aba_consulta()
         self._aba_monitoramento()
         self._aba_log()
 
         self._atualizar_prazos()
         self.after(150, self._drenar_filas)
-        self._nb.select(2)  # abre direto na aba Prazos
+        self._nb.select(self._tab_prazos)  # abre direto na aba Prazos
         logger.info("Interface iniciada. Captura=%s | OAB=%s", settings.capture_provider, settings.monitor_oab or "(nenhuma)")
         # Alimenta a lista automaticamente ao iniciar e, depois, periodicamente.
         self.after(800, self._auto_buscar)
@@ -260,6 +262,7 @@ class App(tk.Tk):
     def _aba_prazos(self) -> None:
         frame = ttk.Frame(self._nb)
         self._nb.add(frame, text="Prazos")
+        self._tab_prazos = frame
 
         # iid da linha -> registro (evita ler valores já convertidos da Treeview,
         # que estraga números de processo e zeros à esquerda).
@@ -448,6 +451,162 @@ class App(tk.Tk):
             return
         self._copiar_texto(processo)
 
+    # --------------------------------------------------- Consultar processo
+    def _aba_consulta(self) -> None:
+        frame = ttk.Frame(self._nb)
+        self._nb.add(frame, text="Consultar / Movimentações")
+        self._consulta_linhas: dict[str, str] = {}
+
+        top = ttk.Frame(frame)
+        top.pack(fill="x", padx=8, pady=(10, 4))
+        ttk.Label(top, text="OAB (ex.: 80036/RJ) ou nº do processo:").pack(side="left")
+        self._consulta_num = tk.StringVar(
+            value=(settings.monitor_oab or "").split(",")[0].strip()
+        )
+        ent = ttk.Entry(top, textvariable=self._consulta_num, width=32)
+        ent.pack(side="left", padx=6)
+        ent.bind("<Return>", lambda _e: self._consultar())
+        ttk.Button(top, text="Consultar", command=self._consultar).pack(side="left")
+        ttk.Button(top, text="Copiar nº do processo", command=self._copiar_consulta).pack(
+            side="left", padx=6
+        )
+
+        ttk.Label(
+            frame,
+            text="Lista as movimentações/comunicações recentes no DJEN (precisa de "
+            "internet). Digite a sua OAB com UF (80036/RJ) ou um número de processo.",
+            foreground="#666",
+            justify="left",
+            wraplength=880,
+        ).pack(anchor="w", padx=10, pady=(0, 6))
+
+        container = ttk.Frame(frame)
+        container.pack(fill="both", expand=True, padx=8, pady=6)
+        colunas = ("data", "processo", "orgao", "partes", "advogados", "trecho")
+        self._consulta_tree = ttk.Treeview(
+            container, columns=colunas, show="headings", height=13
+        )
+        for col, titulo, largura in [
+            ("data", "Data", 85),
+            ("processo", "Processo", 175),
+            ("orgao", "Órgão/Diário", 140),
+            ("partes", "Partes (autor x réu)", 220),
+            ("advogados", "Advogados/Procuradores", 240),
+            ("trecho", "Trecho da publicação", 320),
+        ]:
+            self._consulta_tree.heading(col, text=titulo)
+            self._consulta_tree.column(col, width=largura, anchor="w")
+        vsb = ttk.Scrollbar(container, orient="vertical", command=self._consulta_tree.yview)
+        hsb = ttk.Scrollbar(container, orient="horizontal", command=self._consulta_tree.xview)
+        self._consulta_tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+        self._consulta_tree.grid(row=0, column=0, sticky="nsew")
+        vsb.grid(row=0, column=1, sticky="ns")
+        hsb.grid(row=1, column=0, sticky="ew")
+        container.rowconfigure(0, weight=1)
+        container.columnconfigure(0, weight=1)
+        self._consulta_tree.bind("<Double-1>", lambda _e: self._copiar_consulta())
+
+        self._consulta_status = ttk.Label(frame, text="", foreground="#666")
+        self._consulta_status.pack(anchor="w", padx=10, pady=(0, 8))
+
+    def _consultar(self) -> None:
+        entrada = (self._consulta_num.get() or "").strip()
+        if not entrada:
+            messagebox.showinfo("Consultar", "Digite a sua OAB (com UF) ou um processo.")
+            return
+        if getattr(self, "_consultando", False):
+            return
+        self._consultando = True
+        for item in self._consulta_tree.get_children():
+            self._consulta_tree.delete(item)
+        self._consulta_linhas.clear()
+        self._consulta_status.config(text=f"Consultando '{entrada}' no DJEN...")
+        threading.Thread(
+            target=self._consulta_worker, args=(entrada,), daemon=True
+        ).start()
+
+    @staticmethod
+    def _montar_alvo_consulta(entrada: str):
+        """Interpreta a entrada como OAB (com UF) ou número de processo."""
+        from src.models import AlvoMonitoramento, TipoMonitoramento
+
+        texto = entrada.strip()
+        # Processo CNJ: tem muitos dígitos (>= 15) e separadores típicos.
+        digitos = sum(c.isdigit() for c in texto)
+        if digitos >= 15:
+            return AlvoMonitoramento(
+                tipo=TipoMonitoramento.PROCESSO,
+                valor=normalizar_numero_processo(texto),
+            )
+        # OAB no formato "80036/RJ", "80036-RJ" ou "80036 RJ".
+        numero, uf = texto, None
+        for sep in ("/", "-", " "):
+            if sep in texto:
+                partes = texto.split(sep, 1)
+                numero, uf = partes[0].strip(), partes[1].strip().upper() or None
+                break
+        return AlvoMonitoramento(
+            tipo=TipoMonitoramento.OAB, valor=numero.strip(), uf=uf
+        )
+
+    def _consulta_worker(self, entrada: str) -> None:
+        try:
+            from src.services.capture.comunica import ComunicaProvider
+
+            alvo = self._montar_alvo_consulta(entrada)
+            pubs = ComunicaProvider().buscar(alvo, max_paginas=3)
+            # Mais recentes primeiro.
+            pubs.sort(key=lambda p: (p.data_publicacao or date.min), reverse=True)
+            self._eventos_fila.put(("consulta_ok", (alvo.rotulo, pubs)))
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Falha na consulta de processo/OAB")
+            self._eventos_fila.put(("consulta_erro", str(exc)))
+
+    def _preencher_consulta(self, rotulo: str, pubs: list) -> None:
+        for item in self._consulta_tree.get_children():
+            self._consulta_tree.delete(item)
+        self._consulta_linhas.clear()
+        for p in pubs:
+            partes = " x ".join(
+                x for x in [p.cliente or "?", p.parte_contraria or "?"] if x
+            )
+            data = p.data_publicacao.strftime("%d/%m/%Y") if p.data_publicacao else ""
+            trecho = " ".join((p.conteudo or "").split())[:200]
+            iid = self._consulta_tree.insert(
+                "", "end",
+                values=(
+                    data,
+                    p.numero_processo or "",
+                    p.diario or "",
+                    partes,
+                    p.advogados or "",
+                    trecho,
+                ),
+            )
+            self._consulta_linhas[iid] = p.numero_processo or ""
+        if pubs:
+            self._consulta_status.config(
+                text=f"{len(pubs)} movimentação(ões) encontrada(s) para {rotulo}."
+            )
+        else:
+            self._consulta_status.config(
+                text=f"Nenhuma movimentação recente encontrada no DJEN para {rotulo}."
+            )
+
+    def _copiar_consulta(self) -> None:
+        selecao = self._consulta_tree.selection()
+        if not selecao:
+            messagebox.showinfo("Copiar", "Selecione uma linha.")
+            return
+        processo = (self._consulta_linhas.get(selecao[0]) or "").strip()
+        if not processo:
+            messagebox.showinfo("Copiar", "Esta linha não tem número de processo.")
+            return
+        self.clipboard_clear()
+        self.clipboard_append(processo)
+        self.update()
+        self._consulta_status.config(text=f"Número do processo copiado: {processo}")
+
     # ----------------------------------------------------- Monitoramento
     def _aba_monitoramento(self) -> None:
         frame = ttk.Frame(self._nb)
@@ -482,7 +641,7 @@ class App(tk.Tk):
         if hasattr(self, "_prazos_status"):
             self._prazos_status.config(text="Buscando publicações no diário...")
         if not auto:
-            self._nb.select(4)  # aba Registro (acompanhar o andamento)
+            self._nb.select(self._tab_registro)  # aba Registro (acompanhar)
         threading.Thread(target=self._buscar_worker, daemon=True).start()
 
     def _auto_buscar(self) -> None:
@@ -506,6 +665,7 @@ class App(tk.Tk):
     def _aba_log(self) -> None:
         frame = ttk.Frame(self._nb)
         self._nb.add(frame, text="Registro")
+        self._tab_registro = frame
         self._log = ScrolledText(frame, height=20, state="disabled", wrap="word")
         self._log.pack(fill="both", expand=True, padx=6, pady=6)
 
@@ -533,7 +693,7 @@ class App(tk.Tk):
                     self._status.config(text=f"Concluído. Prazos extraídos: {dado}.")
                     self._atualizar_prazos()
                     if not auto:
-                        self._nb.select(2)  # vai direto para a aba Prazos
+                        self._nb.select(self._tab_prazos)  # vai para a aba Prazos
                 elif tipo == "buscar_erro":
                     auto = getattr(self, "_busca_auto", False)
                     self._buscando = False
@@ -541,6 +701,15 @@ class App(tk.Tk):
                     self._status.config(text="Erro na busca (veja a aba Registro).")
                     if not auto:  # em busca automática, não interrompe com pop-up
                         messagebox.showerror("Erro na busca", str(dado))
+                elif tipo == "consulta_ok":
+                    self._consultando = False
+                    self._preencher_consulta(*dado)
+                elif tipo == "consulta_erro":
+                    self._consultando = False
+                    self._consulta_status.config(
+                        text="Erro na consulta (veja a aba Registro)."
+                    )
+                    messagebox.showerror("Erro na consulta", str(dado))
         except queue.Empty:
             pass
 

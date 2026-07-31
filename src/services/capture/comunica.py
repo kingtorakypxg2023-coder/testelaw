@@ -185,6 +185,34 @@ class ComunicaProvider(CaptureProvider):
         return cliente, parte_contraria
 
     @staticmethod
+    def _extrair_advogados(item: dict[str, Any]) -> str | None:
+        """Extrai os advogados/procuradores citados na comunicação.
+
+        No DJEN costumam vir numa lista (`destinatarioadvogados`/`advogados`),
+        cada item com o nome e, quando disponível, número/UF da OAB.
+        """
+        nomes: list[str] = []
+        for chave in ("destinatarioadvogados", "advogados", "advogado", "procuradores"):
+            lista = item.get(chave)
+            if not isinstance(lista, list):
+                continue
+            for ent in lista:
+                if not isinstance(ent, dict):
+                    continue
+                adv = ent.get("advogado") if isinstance(ent.get("advogado"), dict) else ent
+                nome = str(adv.get("nome") or adv.get("nomeAdvogado") or "").strip()
+                if not nome:
+                    continue
+                oab = adv.get("numero_oab") or adv.get("numeroOab") or adv.get("oab")
+                uf = adv.get("uf_oab") or adv.get("ufOab") or adv.get("uf")
+                if oab:
+                    nome = f"{nome} (OAB {oab}{'/' + str(uf) if uf else ''})"
+                nomes.append(nome)
+            if nomes:
+                break
+        return " / ".join(dict.fromkeys(nomes)) or None
+
+    @staticmethod
     def _map_to_publicacao(item: dict[str, Any], alvo: AlvoMonitoramento) -> Publicacao:
         texto = item.get("texto") or item.get("conteudo") or item.get("corpo") or ""
         data_raw = (
@@ -206,6 +234,7 @@ class ComunicaProvider(CaptureProvider):
             ),
             cliente=cliente,
             parte_contraria=parte_contraria,
+            advogados=ComunicaProvider._extrair_advogados(item),
             diario=item.get("nomeOrgao") or item.get("siglaTribunal"),
             data_publicacao=parse_date(data_raw),
             conteudo=_limpar_html(str(texto)),
